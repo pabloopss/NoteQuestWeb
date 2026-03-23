@@ -66,7 +66,12 @@
         <button id="btn-login">ENTRAR</button>
         <button onclick="mostrarTela('tela-registro')" class="btn-sec">CRIAR NOVA CONTA</button>
     </div>
-
+    <div style="text-align: center; margin: 15px 0; color: #555; font-size: 14px;">ou</div>
+        
+        <button id="btn-google" style="background: #fff; color: #000; border: none; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" width="20" height="20" alt="G"> 
+            Entrar com o Google
+        </button>
     <div id="tela-registro" class="container escondido" style="margin-top: 5vh;">
         <h2 style="color: var(--neon); text-align: center; margin-top: 0;">NOVA CONTA</h2>
         <input type="email" id="reg-email" placeholder="O seu E-mail">
@@ -205,6 +210,7 @@
     </div>
 
     <script type="module">
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
@@ -381,7 +387,18 @@
         // Autenticação Nova (Separada do Login)
         document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('senha').value).catch(e=>alert("Erro: " + e.message));
         document.getElementById('btn-registrar').onclick = () => createUserWithEmailAndPassword(auth, document.getElementById('reg-email').value, document.getElementById('reg-senha').value).catch(e=>alert("Erro: " + e.message));
-
+// Lógica do Login com Google
+        const googleProvider = new GoogleAuthProvider();
+        
+        document.getElementById('btn-google').onclick = () => {
+            document.getElementById('status-servidor').innerText = "A ligar ao Google...";
+            document.getElementById('status-servidor').classList.remove('escondido');
+            
+            signInWithPopup(auth, googleProvider).catch(e => {
+                alert("Erro ao entrar com o Google: " + e.message);
+                document.getElementById('status-servidor').classList.add('escondido');
+            });
+        };
         async function verificarFicha() {
             const snap = await getDoc(doc(db, "personagens", UID));
             if (snap.exists()) {
