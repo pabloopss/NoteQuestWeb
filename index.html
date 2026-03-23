@@ -36,33 +36,34 @@
     </div>
 
     <script type="module">
-        // Importamos tudo do nosso novo arquivo central!
-        import { auth, db, googleProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInWithPopup, doc, getDoc } from "./firebase.js";
+        // Importamos o getDocFromServer
+        import { auth, db, googleProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInWithPopup, doc, getDocFromServer, signOut } from "./firebase.js";
 
         const EMAIL_DO_MESTRE = "pabloss.ti@gmail.com";
         const statusMsg = document.getElementById('status-msg');
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                statusMsg.innerText = "Autenticado! A verificar ficha...";
+                statusMsg.innerText = "Autenticado! A verificar no servidor...";
                 
-                // 1. É o Mestre?
                 if (user.email === EMAIL_DO_MESTRE && !sessionStorage.getItem('modo_jogador')) {
                     window.location.href = "mestre.html";
                     return;
                 }
 
-                // 2. É um jogador. Tem ficha?
                 try {
-                    const snap = await getDoc(doc(db, "personagens", user.uid));
+                    // MUDANÇA CRUCIAL: Agora ele IGNORA a cache e vai sempre ao servidor real
+                    const snap = await getDocFromServer(doc(db, "personagens", user.uid));
                     if (snap.exists()) {
-                        window.location.href = "mundo.html"; // Vai para o jogo!
+                        window.location.href = "mundo.html"; 
                     } else {
-                        window.location.href = "criacao.html"; // Vai criar o herói!
+                        window.location.href = "criacao.html"; 
                     }
                 } catch (error) {
-                    statusMsg.innerText = "Erro ao ler base de dados: " + error.message;
+                    // Se der erro (ex: utilizador foi apagado na base de dados e não tem permissão)
+                    statusMsg.innerText = "Sessão inválida. Por favor, inicie sessão novamente.";
                     statusMsg.style.color = "#f44";
+                    signOut(auth); // Limpa a cache "fantasma" do navegador
                 }
             } else {
                 statusMsg.innerText = "Pronto para jogar.";
