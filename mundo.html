@@ -56,7 +56,7 @@
         <div class="mapa-viewport"><div class="mapa-camada" id="camada-mundo"></div></div>
         
         <div style="background: #0a0a0a; border: 1px dashed #555; padding: 15px; text-align: center; border-radius: 6px;">
-            <div id="hex-terreno" style="color: var(--gold); font-size: 20px; font-weight: bold;">Terreno</div>
+            <div id="hex-terreno" style="color: var(--gold); font-size: 20px; font-weight: bold;">A Carregar...</div>
             <div id="hex-masmorra" style="color: var(--magic); font-size: 14px; margin-bottom: 10px; font-weight: bold; margin-top: 5px;">Masmorra: Nenhuma</div>
             
             <div id="acoes-cidade" class="escondido" style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
@@ -82,7 +82,7 @@
     </div>
 
     <script type="module">
-        import { auth, db, doc, getDoc, updateDoc, onSnapshot, signOut, onAuthStateChanged } from "./firebase.js";
+        import { auth, db, doc, getDoc, updateDoc, setDoc, onSnapshot, signOut, onAuthStateChanged } from "./firebase.js";
         
         let UID = null; let PERSONAGEM = null; let MAPA_GLOBAL = {}; const SERVIDOR_ATUAL = "Mundo Alpha";
         const REGRAS = window.REGRAS;
@@ -98,14 +98,28 @@
             const snap = await getDoc(doc(db, "personagens", UID));
             if (snap.exists()) {
                 PERSONAGEM = snap.data();
-                if(PERSONAGEM.masmorra) window.location.href = "masmorra.html"; // Se fechou o jogo na masmorra, volta pra lá!
+                
+                // REDE DE SEGURANÇA 1: Se o personagem não tiver coordenadas Q e R, força para 0,0.
+                if (PERSONAGEM.mundo.q === undefined || PERSONAGEM.mundo.r === undefined) {
+                    PERSONAGEM.mundo = { q: 0, r: 0 };
+                    updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+                }
+
+                if(PERSONAGEM.masmorra) window.location.href = "masmorra.html"; 
                 iniciarListenerMapa();
             } else window.location.href = "criacao.html";
         }
 
         function iniciarListenerMapa() {
             onSnapshot(doc(db, "mundos", SERVIDOR_ATUAL), (snap) => {
-                if (snap.exists()) MAPA_GLOBAL = snap.data();
+                // REDE DE SEGURANÇA 2: Se o mapa estiver vazio ou corrompido, recria a Cidade.
+                if (snap.exists() && Object.keys(snap.data()).length > 0) {
+                    MAPA_GLOBAL = snap.data();
+                    if(!MAPA_GLOBAL["0,0"]) MAPA_GLOBAL["0,0"] = { terreno: "Cidade Humana", masmorra: null };
+                } else {
+                    MAPA_GLOBAL = { "0,0": { terreno: "Cidade Humana", masmorra: null } };
+                    setDoc(doc(db, "mundos", SERVIDOR_ATUAL), MAPA_GLOBAL);
+                }
                 atualizarInterface(); desenharMapa();
             });
         }
@@ -117,10 +131,18 @@
             document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes;
             document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
 
-            const hexAtual = MAPA_GLOBAL[`${PERSONAGEM.mundo.q},${PERSONAGEM.mundo.r}`];
-            if(!hexAtual) return;
+            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r;
+            const hexAtual = MAPA_GLOBAL[`${mq},${mr}`];
+            
+            // REDE DE SEGURANÇA 3: Se por algum motivo o jogador estiver num Hex que não existe, joga ele pra 0,0.
+            if(!hexAtual) {
+                log("⚠️ Perdido no vazio. Retornando para a Cidade...");
+                PERSONAGEM.mundo.q = 0; PERSONAGEM.mundo.r = 0;
+                updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+                return;
+            }
 
-            document.getElementById('hex-coord').innerText = `MAPA-MÚNDI [${PERSONAGEM.mundo.q}, ${PERSONAGEM.mundo.r}]`;
+            document.getElementById('hex-coord').innerText = `MAPA-MÚNDI [${mq}, ${mr}]`;
             document.getElementById('hex-terreno').innerText = `${REGRAS.mundo.terrenos_info[hexAtual.terreno].emoji} ${hexAtual.terreno}`;
             
             const btnCid = document.getElementById('acoes-cidade');
@@ -147,14 +169,19 @@
 
         function desenharMapa() {
             const cam = document.getElementById('camada-mundo'); cam.innerHTML = "";
-            const m = PERSONAGEM.mundo; const c = hexParaPixel(m.q, m.r); cam.style.transform = `translate(${-c.x}px, ${-c.y}px)`;
+            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r;
+            
+            const c = hexParaPixel(mq, mr); 
+            cam.style.transform = `translate(${-c.x}px, ${-c.y}px)`;
+            
             for(let key in MAPA_GLOBAL) {
                 let [q, r] = key.split(',').map(Number); let div = document.createElement('div'); div.className = "hex-node";
                 let p = hexParaPixel(q, r); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = REGRAS.mundo.terrenos_info[MAPA_GLOBAL[key].terreno].emoji;
-                if(q === m.q && r === m.r) div.classList.add('hex-atual'); else div.onclick = () => viajar(q, r, MAPA_GLOBAL[key]); cam.appendChild(div);
+                if(q === mq && r === mr) div.classList.add('hex-atual'); else div.onclick = () => viajar(q, r, MAPA_GLOBAL[key]); cam.appendChild(div);
             }
+            
             VIZINHOS_HEX.forEach(dir => {
-                let nq = m.q + dir[0]; let nr = m.r + dir[1]; let key = `${nq},${nr}`;
+                let nq = mq + dir[0]; let nr = mr + dir[1]; let key = `${nq},${nr}`;
                 if(!MAPA_GLOBAL[key]) {
                     let div = document.createElement('div'); div.className = "hex-node hex-unexplored";
                     let p = hexParaPixel(nq, nr); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = "❓"; div.onclick = () => viajar(nq, nr, null); cam.appendChild(div);
