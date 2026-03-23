@@ -5,24 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Mestre - NoteQuest</title>
     <style>
-        /* Estilos do Painel */
         body { background: #111; color: #eee; font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         h1 { color: #d0f; text-align: center; margin-top: 0; }
-        
         .card { background: #222; border: 1px solid #d0f; padding: 15px; margin-bottom: 20px; border-radius: 5px; width: 100%; max-width: 800px; box-sizing: border-box; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #555; padding: 8px; text-align: left; }
         th { background: #333; color: #0fa; }
-        
-        button { background: #d0f; color: #fff; border: none; padding: 8px 15px; cursor: pointer; border-radius: 3px; font-weight: bold; font-family: inherit; }
+        button { background: #d0f; color: #fff; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; font-family: inherit; margin-bottom: 5px; }
         button:hover { filter: brightness(1.2); }
         button.btn-del { background: #f44; }
-        
+        button.btn-sec { background: transparent; color: #0fa; border: 1px solid #0fa; }
         input { background: #000; color: #fff; border: 1px solid #555; padding: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box; font-family: inherit; }
-        
         .escondido { display: none !important; }
-        
-        /* Caixa de Login do Mestre */
         .login-box { max-width: 400px; width: 100%; background: #1a1a1a; padding: 20px; border: 2px solid #0fa; text-align: center; margin-top: 50px; border-radius: 8px; box-sizing: border-box; }
     </style>
 </head>
@@ -30,44 +24,42 @@
 
     <div id="tela-login-gm" class="login-box">
         <h2 style="color: #0fa; margin-top: 0;">ACESSO RESTRITO (GM)</h2>
-        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Identifique-se para aceder aos servidores.</p>
-        
         <input type="email" id="gm-email" placeholder="E-mail do Mestre">
         <input type="password" id="gm-senha" placeholder="Palavra-passe secreta">
-        
         <button id="btn-login-gm" style="background: #0fa; color: #000; width: 100%;">ENTRAR NO PAINEL</button>
         <p id="msg-erro" style="color: #f44; font-size: 13px; margin-top: 15px;"></p>
     </div>
 
     <div id="painel-gm" class="escondido" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         
-        <div style="width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="width: 100%; max-width: 800px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px;">
             <h1 style="margin: 0;">👁️ VISÃO DO MESTRE</h1>
-            <button onclick="deslogarGm()" style="background: #555;">🚪 SAIR</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-sec" onclick="jogarComoGM()">🎮 IR PARA O JOGO</button>
+                <button onclick="deslogarGm()" style="background: #555;">🚪 SAIR</button>
+            </div>
         </div>
         
         <div class="card">
-            <h3 style="margin-top: 0;">🌍 Gestão de Mundos (Servidores)</h3>
-            <p style="font-size: 14px; color: #aaa;">Se reiniciar um mundo, ele volta a ter apenas o Hex [0,0] com a Cidade Humana. As masmorras descobertas apagam-se.</p>
-            <button onclick="resetarMundo('Mundo Alpha')" style="margin-right: 10px;">RESETAR Mundo Alpha</button>
-            <button onclick="resetarMundo('Mundo Omega')">RESETAR Mundo Ômega</button>
+            <h3 style="margin-top: 0; color: var(--gold);">🌍 Gestão de Mundos (Servidores)</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="novo-mundo" placeholder="Ex: Mundo Delta" style="flex: 2; margin: 0;">
+                <button onclick="criarMundo()" style="flex: 1; margin: 0;">➕ CRIAR MUNDO</button>
+            </div>
+            <table>
+                <thead><tr><th>Nome do Servidor</th><th>Ações</th></tr></thead>
+                <tbody id="lista-mundos"><tr><td colspan="2">A carregar...</td></tr></tbody>
+            </table>
         </div>
 
         <div class="card">
-            <h3 style="margin-top: 0;">🦸 Personagens dos Jogadores</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome do Herói</th>
-                        <th>Raça / Classe</th>
-                        <th>PV Atual</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-personagens">
-                    <tr><td colspan="4" style="text-align: center; color: #888;">A carregar base de dados...</td></tr>
-                </tbody>
-            </table>
+            <h3 style="margin-top: 0; color: #0fa;">🦸 Personagens dos Jogadores</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead><tr><th>Herói</th><th>Raça / Classe</th><th>Ouro / Prov.</th><th>Ações</th></tr></thead>
+                    <tbody id="lista-personagens"><tr><td colspan="4">A carregar...</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -76,7 +68,6 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-        // AS SUAS CHAVES DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
             authDomain: "notequestweb.firebaseapp.com",
@@ -89,23 +80,18 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // ===================================================================
-        // ⚠️ MUITO IMPORTANTE: Coloque aqui o e-mail que vai ser o Mestre!
-        // ===================================================================
         const EMAIL_DO_MESTRE = "pabloss.ti@gmail.com"; 
 
-        // OUVINTE DE AUTENTICAÇÃO (Verifica se é o mestre)
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // O utilizador logou. Mas é o Mestre?
                 if (user.email === EMAIL_DO_MESTRE) {
                     document.getElementById('tela-login-gm').classList.add('escondido');
                     document.getElementById('painel-gm').classList.remove('escondido');
+                    carregarMundos();
                     carregarPersonagens();
                 } else {
-                    // É um jogador normal a tentar espreitar!
-                    document.getElementById('msg-erro').innerText = "Acesso negado! Este painel é exclusivo para o Game Master.";
-                    signOut(auth); // Expulsa-o imediatamente
+                    document.getElementById('msg-erro').innerText = "Acesso negado! Exclusivo para o Game Master.";
+                    signOut(auth);
                 }
             } else {
                 document.getElementById('tela-login-gm').classList.remove('escondido');
@@ -113,65 +99,63 @@
             }
         });
 
-        // AÇÃO DE LOGIN DO MESTRE
         document.getElementById('btn-login-gm').onclick = () => {
             const email = document.getElementById('gm-email').value;
             const senha = document.getElementById('gm-senha').value;
-            document.getElementById('msg-erro').innerText = "A verificar credenciais...";
+            document.getElementById('msg-erro').innerText = "A verificar...";
             document.getElementById('msg-erro').style.color = "#0fa";
-            
-            signInWithEmailAndPassword(auth, email, senha).catch(error => {
-                document.getElementById('msg-erro').style.color = "#f44";
-                document.getElementById('msg-erro').innerText = "Erro: " + error.message;
-            });
+            signInWithEmailAndPassword(auth, email, senha).catch(error => { document.getElementById('msg-erro').style.color = "#f44"; document.getElementById('msg-erro').innerText = "Erro: " + error.message; });
         };
 
-        // AÇÃO DE SAIR DO PAINEL
-        window.deslogarGm = () => { 
-            signOut(auth); 
+        window.deslogarGm = () => { signOut(auth); };
+
+        // O SEGREDO DO MESTRE: Ir para o jogo!
+        window.jogarComoGM = () => {
+            sessionStorage.setItem('modo_jogador', 'true');
+            window.location.href = "index.html";
         };
 
-        // ===================================================================
-        // FUNÇÕES DE ADMINISTRAÇÃO (Base de Dados)
-        // ===================================================================
+        // GESTÃO DE MUNDOS
+        window.criarMundo = async function() {
+            const nome = document.getElementById('novo-mundo').value;
+            if(!nome) return alert("Digita um nome para o mundo!");
+            await setDoc(doc(db, "mundos", nome), { "0,0": { terreno: "Cidade Humana", masmorra: null } });
+            document.getElementById('novo-mundo').value = "";
+            carregarMundos();
+        };
 
-        window.resetarMundo = async function(nomeServidor) {
-            if(confirm(`⚠️ ALERTA DE CATACLISMO!\n\nTens a certeza que desejas destruir o ${nomeServidor}? Todos os mapas explorados pelos jogadores serão transformados em pó!`)) {
-                await setDoc(doc(db, "mundos", nomeServidor), {
-                    "0,0": { terreno: "Cidade Humana", masmorra: null }
-                });
-                alert(`${nomeServidor} foi purificado e reiniciado com sucesso!`);
+        window.deletarMundo = async function(nome) {
+            if(confirm(`Queres mesmo apagar o servidor '${nome}'? O mundo será destruído!`)) {
+                await deleteDoc(doc(db, "mundos", nome));
+                carregarMundos();
             }
         };
 
-        async function carregarPersonagens() {
-            const tbody = document.getElementById('lista-personagens');
-            tbody.innerHTML = "";
-            const querySnapshot = await getDocs(collection(db, "personagens"));
-            
-            if(querySnapshot.empty) {
-                tbody.innerHTML = "<tr><td colspan='4' style='text-align: center; color: #888;'>Ainda não existem heróis no mundo.</td></tr>";
-                return;
-            }
-
+        async function carregarMundos() {
+            const tbody = document.getElementById('lista-mundos'); tbody.innerHTML = "";
+            const querySnapshot = await getDocs(collection(db, "mundos"));
+            if(querySnapshot.empty) { tbody.innerHTML = "<tr><td colspan='2'>Nenhum mundo criado.</td></tr>"; return; }
             querySnapshot.forEach((docSnap) => {
-                let p = docSnap.data();
                 let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="color: var(--neon); font-weight: bold;">${p.nome}</td>
-                    <td>${p.raca} / ${p.classe}</td>
-                    <td style="color: var(--danger);">${p.pv_atual} / ${p.pv_maximo}</td>
-                    <td><button class="btn-del" onclick="deletarPersonagem('${docSnap.id}')">Excluir Herói</button></td>
-                `;
+                tr.innerHTML = `<td><strong>${docSnap.id}</strong></td> <td><button class="btn-del" onclick="deletarMundo('${docSnap.id}')">Excluir Servidor</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // GESTÃO DE PERSONAGENS
+        async function carregarPersonagens() {
+            const tbody = document.getElementById('lista-personagens'); tbody.innerHTML = "";
+            const querySnapshot = await getDocs(collection(db, "personagens"));
+            if(querySnapshot.empty) { tbody.innerHTML = "<tr><td colspan='4'>Ainda não existem heróis.</td></tr>"; return; }
+            querySnapshot.forEach((docSnap) => {
+                let p = docSnap.data(); let tr = document.createElement('tr');
+                tr.innerHTML = `<td><strong style="color:#0fa;">${p.nome}</strong></td> <td>${p.raca}/${p.classe}</td> <td>${p.ouro}g / ${p.provisoes}🍖</td> <td><button class="btn-del" onclick="deletarPersonagem('${docSnap.id}')">Executar</button></td>`;
                 tbody.appendChild(tr);
             });
         }
 
         window.deletarPersonagem = async function(uid) {
-            if(confirm("Desejas enviar o Ceifeiro para executar este herói para sempre? (Esta ação não pode ser desfeita)")) {
-                await deleteDoc(doc(db, "personagens", uid));
-                carregarPersonagens(); // Recarrega a tabela para mostrar que ele desapareceu
-            }
+            if(confirm("Executar este herói para sempre?")) { await deleteDoc(doc(db, "personagens", uid)); carregarPersonagens(); }
         };
     </script>
 </body>
