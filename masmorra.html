@@ -14,8 +14,8 @@
         button:hover { filter: brightness(1.2); }
         button.btn-sec { background: transparent; color: var(--neon); border: 1px solid var(--neon); }
         button.btn-perigo { background: #300; color: var(--danger); border: 1px solid var(--danger); }
+        button.btn-magia { background: #002244; color: var(--magic); border: 1px solid var(--magic); }
         
-        /* HUD & MAPAS */
         .top-hud { display: flex; justify-content: space-between; align-items: center; background: #0a0a0a; padding: 10px; border: 1px solid var(--gold); width: 100%; max-width: 600px; border-radius: 6px; margin-bottom: 15px;}
         .mapa-viewport { position: relative; background: #050510; height: 350px; border: 1px solid #44f; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 15px;}
         .mapa-camada { position: absolute; transition: transform 0.4s ease-out; }
@@ -27,16 +27,18 @@
 
         .log-box { background: #000; border: 1px solid var(--danger); height: 150px; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.5; border-radius: 4px; }
         
-        /* COMBATE */
         .cartao-monstro { background: #220000; border: 1px solid var(--danger); padding: 10px; text-align: center; border-radius: 4px; width: 120px; cursor: pointer; transition: 0.2s;}
         .cartao-monstro.alvo { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); background: #440000; }
         .cartao-monstro.morto { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 
-        /* MODAL */
         #overlay-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 999; }
         #modal-dado { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid var(--gold); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 350px; }
         .grid-dados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
         .btn-dado { background: #222; color: var(--gold); border: 2px solid var(--gold); font-size: 24px; padding: 15px; border-radius: 6px;}
+        
+        /* Modal Magias */
+        #modal-magias { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #001122; border: 2px solid var(--magic); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 400px; }
+        .linha-magia { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #003366; padding: 10px 0; }
     </style>
     <script src="regras.js"></script>
 </head>
@@ -71,13 +73,14 @@
     <div id="tela-combate" class="container escondido" style="border-color: var(--danger);">
         <h2 style="color: var(--danger); text-align: center; margin-top: 0;">⚔️ COMBATE ⚔️</h2>
         
-        <div id="combate-inimigos" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 15px; min-height: 80px;">
-            </div>
-
+        <div id="combate-inimigos" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 15px; min-height: 80px;"></div>
         <div id="log-combate" class="log-box" style="height: 150px; border-color: var(--danger); margin-bottom: 15px;"></div>
         
-        <button id="btn-atacar" class="btn-perigo" style="padding: 15px; font-size: 16px;" onclick="turnoJogador()">🗡️ ATACAR (1d6)</button>
-        <button id="btn-fugir-combate" class="btn-sec" onclick="fugirCombate()">🏃 TENTAR FUGIR (Voltar à sala anterior)</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <button id="btn-atacar" class="btn-perigo" style="padding: 15px; font-size: 16px; margin: 0;" onclick="turnoJogador()">🗡️ ATACAR (1d6)</button>
+            <button id="btn-magia" class="btn-magia" style="padding: 15px; font-size: 16px; margin: 0;" onclick="abrirGrimorio()">✨ MAGIA</button>
+        </div>
+        <button id="btn-fugir-combate" class="btn-sec" onclick="fugirCombate()">🏃 TENTAR FUGIR</button>
     </div>
 
     <div id="overlay-modal" class="escondido"></div>
@@ -90,12 +93,18 @@
         </div>
     </div>
 
+    <div id="modal-magias" class="escondido">
+        <h2 style="color: var(--magic); margin-top: 0;">✨ GRIMÓRIO</h2>
+        <div id="lista-magias-combate" style="text-align: left; margin-bottom: 15px;"></div>
+        <button class="btn-sec" onclick="fecharGrimorio()">CANCELAR</button>
+    </div>
+
     <script type="module">
         import { auth, db, doc, getDoc, updateDoc, signOut, onAuthStateChanged } from "./firebase.js";
         
         let UID = null; let PERSONAGEM = null;
         const REGRAS = window.REGRAS;
-        let COMBATE_ATUAL = { ativo: false, monstros: [], alvoIndex: 0 };
+        let COMBATE_ATUAL = { ativo: false, monstros: [], alvoIndex: 0, temEspolios: false };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) { UID = user.uid; carregarJogo(); } 
@@ -108,24 +117,15 @@
             const snap = await getDoc(doc(db, "personagens", UID));
             if (snap.exists()) {
                 PERSONAGEM = snap.data();
-                if(!PERSONAGEM.masmorra) {
-                    window.location.href = "mundo.html"; // Não deveria estar aqui!
-                    return;
-                }
-                atualizarInterface();
-                desenharMapaMasmorra();
+                if(!PERSONAGEM.masmorra) { window.location.href = "mundo.html"; return; }
+                atualizarInterface(); desenharMapaMasmorra();
             } else window.location.href = "criacao.html";
         }
 
         function atualizarInterface() {
-            document.getElementById('hud-nome').innerText = PERSONAGEM.nome;
-            document.getElementById('hud-pv').innerText = PERSONAGEM.pv_atual;
-            document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro;
-            document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes;
-            document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
-
-            document.getElementById('dg-nome').innerText = PERSONAGEM.masmorra.nome;
-            document.getElementById('dg-status').innerText = `Nível: ${PERSONAGEM.masmorra.nivel}`;
+            document.getElementById('hud-nome').innerText = PERSONAGEM.nome; document.getElementById('hud-pv').innerText = PERSONAGEM.pv_atual;
+            document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro; document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes; document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
+            document.getElementById('dg-nome').innerText = PERSONAGEM.masmorra.nome; document.getElementById('dg-status').innerText = `Nível: ${PERSONAGEM.masmorra.nivel}`;
         }
 
         function logMasmorra(msg, cor="#eee") { const div = document.getElementById('log-masmorra'); div.innerHTML += `<div style="color: ${cor}; border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
@@ -135,20 +135,16 @@
         window.pedirDado = function(titulo, desc) { return new Promise((resolve) => { document.getElementById('titulo-dado').innerText = titulo; document.getElementById('desc-dado').innerText = desc; document.getElementById('overlay-modal').classList.remove('escondido'); document.getElementById('modal-dado').classList.remove('escondido'); resolveDadoAtual = resolve; }); };
         window.informarDado = function(v) { document.getElementById('overlay-modal').classList.add('escondido'); document.getElementById('modal-dado').classList.add('escondido'); if (resolveDadoAtual) { resolveDadoAtual(v); resolveDadoAtual = null; } };
 
-        // =========================================================
         // MAPA DA MASMORRA
-        // =========================================================
         function desenharMapaMasmorra() {
             const cam = document.getElementById('camada-masmorra'); cam.innerHTML = "";
-            const m = PERSONAGEM.masmorra; const SIZE = 50; 
-            cam.style.transform = `translate(${-(m.x * SIZE)}px, ${-(m.y * SIZE)}px)`;
+            const m = PERSONAGEM.masmorra; const SIZE = 50; cam.style.transform = `translate(${-(m.x * SIZE)}px, ${-(m.y * SIZE)}px)`;
 
             for(let key in m.mapa) {
                 let [sx, sy] = key.split(',').map(Number);
                 let div = document.createElement('div'); div.className = "sala-node"; div.innerText = m.mapa[key].icone || "⬛";
                 div.style.left = `calc(50% + ${sx * SIZE}px - 20px)`; div.style.top = `calc(50% + ${sy * SIZE}px - 20px)`;
-                if(sx === m.x && sy === m.y) div.classList.add('sala-atual');
-                cam.appendChild(div);
+                if(sx === m.x && sy === m.y) div.classList.add('sala-atual'); cam.appendChild(div);
 
                 if (m.mapa[key].portasRestantes > 0 && sx === m.x && sy === m.y) {
                     [[0,-1], [0,1], [1,0], [-1,0]].forEach(d => {
@@ -156,25 +152,17 @@
                         if(!m.mapa[`${nx},${ny}`]) {
                             let porta = document.createElement('div'); porta.className = "porta-node"; porta.innerText = "🚪";
                             porta.style.left = `calc(50% + ${sx * SIZE + (d[0]*25)}px - 11px)`; porta.style.top = `calc(50% + ${sy * SIZE + (d[1]*25)}px - 11px)`;
-                            porta.onclick = () => interagirPorta(nx, ny, sx, sy);
-                            cam.appendChild(porta);
+                            porta.onclick = () => interagirPorta(nx, ny, sx, sy); cam.appendChild(porta);
                         }
                     });
                 }
             }
-            updateDoc(doc(db, "personagens", UID), PERSONAGEM);
-            atualizarInterface();
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM); atualizarInterface();
         }
 
         window.interagirPorta = async function(nx, ny, sx, sy) {
             let rP = await pedirDado("TESTAR PORTA", "Role 1d6."); let p = REGRAS.estado_porta[rP]; logMasmorra(p.msg, "var(--gold)");
-            
-            if (p.status === "trancada") { 
-                if (confirm("A porta está trancada! Gastar 1 TOCHA (🔥) para queimar a fechadura?")) { 
-                    if(PERSONAGEM.tochas > 0) { PERSONAGEM.tochas--; logMasmorra("Fechadura queimada! (-1 🔥)"); } 
-                    else return alert("Sem tochas!"); 
-                } else return; 
-            }
+            if (p.status === "trancada") { if (confirm("Gastar 1 TOCHA (🔥)?")) { if(PERSONAGEM.tochas > 0) { PERSONAGEM.tochas--; logMasmorra("Fechadura queimada! (-1 🔥)"); } else return alert("Sem tochas!"); } else return; }
 
             PERSONAGEM.masmorra.mapa[`${sx},${sy}`].portasRestantes--;
 
@@ -192,8 +180,7 @@
             PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny;
             
             if (seg.tipo === "Escadaria") { PERSONAGEM.masmorra.nivel++; logMasmorra(`🪜 Desceste para o Nível ${PERSONAGEM.masmorra.nivel}!`, "var(--neon)"); }
-            logMasmorra(`🗺️ Avançaste: ${seg.tipo}. Portas: ${seg.portas}`, "var(--magic)");
-            desenharMapaMasmorra();
+            logMasmorra(`🗺️ Avançaste: ${seg.tipo}. Portas: ${seg.portas}`, "var(--magic)"); desenharMapaMasmorra();
 
             if (seg.tipo.includes("Sala")) {
                 let r1 = await pedirDado("ENCONTRO 1", "Role 1d6."); let r2 = await pedirDado("ENCONTRO 2", "Role o segundo 1d6.");
@@ -206,14 +193,11 @@
         };
 
         window.fugirParaMundo = function() {
-            if(confirm("Desejas abandonar a Masmorra? O progresso nela será perdido!")) {
-                PERSONAGEM.masmorra = null;
-                updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => { window.location.href = "mundo.html"; });
-            }
+            if(confirm("Desejas abandonar a Masmorra? O progresso nela será perdido!")) { PERSONAGEM.masmorra = null; updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => { window.location.href = "mundo.html"; }); }
         };
 
         // =========================================================
-        // SISTEMA DE COMBATE
+        // SISTEMA DE COMBATE & LOOT & MAGIAS
         // =========================================================
         function parseMonstroString(str) {
             let qtd = 1; let nome = str; let matchQtd = str.match(/^(\d+)\s+(.*)/); 
@@ -229,12 +213,10 @@
         }
 
         window.iniciarCombate = function(str) {
-            COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0 };
+            COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0, temEspolios: str.toLowerCase().includes("espólio") || str.toLowerCase().includes("tesouro") };
             document.getElementById('tela-exploracao').classList.add('escondido');
             document.getElementById('tela-combate').classList.remove('escondido');
-            document.getElementById('log-combate').innerHTML = "";
-            logCombate(`Foste atacado por: ${str}`, "var(--danger)");
-            renderizarInimigos();
+            document.getElementById('log-combate').innerHTML = ""; logCombate(`Foste atacado por: ${str}`, "var(--danger)"); renderizarInimigos();
         };
 
         function renderizarInimigos() {
@@ -249,9 +231,7 @@
         }
 
         window.turnoJogador = async function() {
-            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex];
-            if(!alvo || !alvo.vivo) return alert("Selecione um inimigo vivo!");
-            
+            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return alert("Selecione um inimigo vivo!");
             let rD = parseInt(await pedirDado("SEU ATAQUE", "Role 1d6."));
             let mD = 0; if(PERSONAGEM.arma_dano.includes('+')) mD = parseInt(PERSONAGEM.arma_dano.split('+')[1]); else if(PERSONAGEM.arma_dano.includes('-')) mD = -parseInt(PERSONAGEM.arma_dano.split('-')[1]);
             
@@ -260,45 +240,95 @@
             if (rD === 1 && alvo.habilidades.some(h => h.includes("regen"))) { alvo.pv_atual = Math.min(alvo.pv_max, alvo.pv_atual + 6); msg += " (O monstro curou-se!)"; }
             if (rD === 1 && alvo.habilidades.some(h => h.includes("explosivo"))) { PERSONAGEM.pv_atual -= alvo.pv_atual; msg += " 💥 EXPLODIU em ti!"; dF = 999; }
             
-            alvo.pv_atual -= dF; logCombate(msg, "var(--neon)");
+            aplicarDanoMonstro(alvo, dF, msg);
+        };
 
+        // MAGIAS
+        window.abrirGrimorio = function() {
+            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) return alert("Não conheces nenhuma magia!");
+            let lista = document.getElementById('lista-magias-combate'); lista.innerHTML = "";
+            PERSONAGEM.magias.forEach((m, idx) => {
+                let div = document.createElement('div'); div.className = "linha-magia";
+                div.innerHTML = `<div><strong style="color:var(--magic)">${m.nome}</strong> (${m.usos} usos)</div>
+                                 <button class="btn-magia" style="padding:5px 10px; width:auto; font-size:12px;" onclick="usarMagia(${idx})" ${m.usos <= 0 ? 'disabled' : ''}>CONJURAR</button>`;
+                lista.appendChild(div);
+            });
+            document.getElementById('overlay-modal').classList.remove('escondido'); document.getElementById('modal-magias').classList.remove('escondido');
+        };
+
+        window.fecharGrimorio = function() { document.getElementById('overlay-modal').classList.add('escondido'); document.getElementById('modal-magias').classList.add('escondido'); };
+
+        window.usarMagia = async function(idx) {
+            fecharGrimorio(); let magia = PERSONAGEM.magias[idx];
+            if(magia.usos <= 0) return;
+            magia.usos--; updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+
+            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex];
+            if(!alvo || !alvo.vivo) return alert("Magia falhou: Alvo inválido.");
+
+            let rD = parseInt(await pedirDado("CONJURAR MAGIA", `Lançando ${magia.nome}! Role 1d6 para o efeito.`));
+            logCombate(`✨ Conjuras ${magia.nome}! (Restam ${magia.usos} usos)`, "var(--magic)");
+
+            // Simulação de efeito (Magia de Cura ou Dano)
+            if(magia.nome.toLowerCase().includes("cura") || magia.nome.toLowerCase().includes("vida")) {
+                PERSONAGEM.pv_atual = Math.min(PERSONAGEM.pv_maximo, PERSONAGEM.pv_atual + rD);
+                logCombate(`A magia curou-te ${rD} PV!`, "var(--neon)");
+                atualizarInterface(); turnoMonstros();
+            } else {
+                // Magia de Dano (Dano costuma ignorar armadura e ser direto)
+                aplicarDanoMonstro(alvo, rD + 2, `Magia [Dado ${rD}]: Atingiu o monstro com ${rD + 2} de dano!`);
+            }
+        };
+
+        function aplicarDanoMonstro(alvo, dano, msg) {
+            alvo.pv_atual -= dano; logCombate(msg, "var(--neon)");
             if (alvo.pv_atual <= 0) {
                 alvo.pv_atual = 0; alvo.vivo = false; logCombate(`💀 ${alvo.nome} foi abatido!`, "#888");
                 if(alvo.habilidades.some(h => h.includes("morto-vivo"))) {
-                    let rRev = await pedirDado("MORTO-VIVO", "Role 1d6. Se 1, ele revive!");
-                    if(rRev == 1) { alvo.pv_atual = 1; alvo.vivo = true; logCombate("💀 Os ossos colam-se! Reviveu!", "var(--danger)"); }
+                    // Pular rolagem pra não travar muito o JS, mas se quiser pode botar pedirDado aqui.
+                    let rev = Math.floor(Math.random() * 6) + 1;
+                    if(rev === 1) { alvo.pv_atual = 1; alvo.vivo = true; logCombate("💀 Os ossos colam-se! Reviveu!", "var(--danger)"); }
                 }
             }
-            
             renderizarInimigos();
             if (COMBATE_ATUAL.monstros.every(m => !m.vivo)) { 
                 logCombate("VITÓRIA! Sobreviveste.", "var(--gold)"); 
-                updateDoc(doc(db, "personagens", UID), PERSONAGEM);
-                setTimeout(() => encerrarCombate(), 1500); 
+                verificarLoot();
             } else turnoMonstros();
-        };
+        }
 
         function turnoMonstros() {
             let d = 0; COMBATE_ATUAL.monstros.forEach(m => { if(m.vivo) d += m.dano; });
             if (d > 0) { 
-                PERSONAGEM.pv_atual -= d; 
-                logCombate(`Os monstros causaram ${d} de dano!`, "var(--danger)"); 
-                atualizarInterface(); 
-                updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+                PERSONAGEM.pv_atual -= d; logCombate(`Os monstros causaram ${d} de dano!`, "var(--danger)"); atualizarInterface(); updateDoc(doc(db, "personagens", UID), PERSONAGEM);
                 if (PERSONAGEM.pv_atual <= 0) { alert("MORRESTE! A tua aventura chegou ao fim."); window.location.href = "index.html"; } 
             }
         }
 
-        window.fugirCombate = function() { 
-            logCombate("Fugiste cobardemente para a sala anterior.", "#aaa"); 
-            encerrarCombate(); 
-        };
+        async function verificarLoot() {
+            if(COMBATE_ATUAL.temEspolios) {
+                let loot = parseInt(await pedirDado("ESPÓLIOS!", "Os monstros deixaram loot. Role 1d6."));
+                if(loot >= 4) {
+                    let ouroGanhado = Math.floor(Math.random() * 6) + 1;
+                    PERSONAGEM.ouro += ouroGanhado;
+                    logCombate(`💰 Encontraste ${ouroGanhado} de Ouro nos corpos!`, "var(--gold)");
+                } else {
+                    PERSONAGEM.provisoes += 1;
+                    logCombate(`🍖 Achaste 1 Provisão no meio da confusão.`, "#f88");
+                }
+                atualizarInterface();
+            }
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+            setTimeout(() => encerrarCombate(), 2000); 
+        }
+
+        window.fugirCombate = function() { logCombate("Fugiste cobardemente para a sala anterior.", "#aaa"); encerrarCombate(); };
 
         function encerrarCombate() { 
             COMBATE_ATUAL.ativo = false; 
             document.getElementById('tela-combate').classList.add('escondido');
             document.getElementById('tela-exploracao').classList.remove('escondido');
-            desenharMapaMasmorra(); // Redesenha a sala normal
+            desenharMapaMasmorra(); 
         }
     </script>
 </body>
