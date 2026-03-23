@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mundo - NoteQuest</title>
+    <style>
+        :root { --bg: #050505; --panel: #151515; --text: #eee; --neon: #0fa; --danger: #f44; --gold: #ffd700; --magic: #0ff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
+        .container { background: var(--panel); border: 2px solid var(--neon); padding: 15px; width: 100%; max-width: 600px; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 255, 170, 0.1); margin-bottom: 20px; }
+        .escondido { display: none !important; }
+        button { background: var(--neon); color: #000; font-weight: bold; font-family: inherit; padding: 12px; border: none; cursor: pointer; border-radius: 6px; font-size: 14px; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); }
+        button.btn-sec { background: transparent; color: var(--neon); border: 1px solid var(--neon); }
+        button.btn-perigo { background: #300; color: var(--danger); border: 1px solid var(--danger); }
+        
+        .top-hud { display: flex; justify-content: space-between; align-items: center; background: #0a0a0a; padding: 10px; border: 1px solid var(--gold); width: 100%; max-width: 600px; border-radius: 6px; margin-bottom: 15px;}
+        .mapa-viewport { position: relative; background: #050510; height: 350px; border: 1px solid #44f; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 15px;}
+        .mapa-camada { position: absolute; transition: transform 0.4s ease-out; }
+        
+        .hex-node { position: absolute; width: 50px; height: 44px; background: #1a1a1a; clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; user-select: none; transition: 0.2s; color: #aaa; box-shadow: inset 0 0 0 2px #555;}
+        .hex-atual { background: #003311; box-shadow: inset 0 0 0 3px var(--neon); z-index: 5;}
+        .hex-unexplored { background: #000; color: #333; opacity: 0.7;}
+        .log-box { background: #000; border: 1px solid var(--neon); height: 120px; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.5; border-radius: 4px; }
+        
+        /* MODAL */
+        #overlay-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 999; }
+        #modal-dado { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid var(--gold); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 350px; }
+        .grid-dados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .btn-dado { background: #222; color: var(--gold); border: 2px solid var(--gold); font-size: 24px; padding: 15px; border-radius: 6px;}
+    </style>
+    <script src="regras.js"></script>
+</head>
+<body>
+
+    <div class="top-hud">
+        <div>
+            <span id="hud-nome" style="color: var(--neon); display: block; margin-bottom: 5px; font-weight: bold;">Herói</span>
+            <span style="color: var(--danger);">❤️<span id="hud-pv">0</span></span> | 
+            <span style="color: var(--gold);">💰<span id="hud-ouro">0</span></span> | 
+            <span style="color: #f88;">🍖<span id="hud-prov">0</span></span> | 
+            <span style="color: #fa0;">🔥<span id="hud-tocha">0</span></span>
+        </div>
+        <div style="display: flex; gap: 5px; flex-direction: column;">
+            <button class="btn-sec" style="padding: 5px 10px; margin: 0;" onclick="window.location.href='ficha.html'">📜 FICHA</button>
+            <button class="btn-perigo" style="padding: 5px 10px; margin: 0;" onclick="deslogar()">🚪 SAIR</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; color: #fff;" id="hex-coord">MAPA-MÚNDI [0,0]</h3>
+            <span style="font-size: 12px; color: var(--magic);">Mundo Alpha</span>
+        </div>
+        
+        <div class="mapa-viewport"><div class="mapa-camada" id="camada-mundo"></div></div>
+        
+        <div style="background: #0a0a0a; border: 1px dashed #555; padding: 15px; text-align: center; border-radius: 6px;">
+            <div id="hex-terreno" style="color: var(--gold); font-size: 20px; font-weight: bold;">Terreno</div>
+            <div id="hex-masmorra" style="color: var(--magic); font-size: 14px; margin-bottom: 10px; font-weight: bold; margin-top: 5px;">Masmorra: Nenhuma</div>
+            
+            <div id="acoes-cidade" class="escondido" style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn-sec" style="width: auto;" onclick="tavernaBoatos()">🍺 Boatos (1g)</button>
+                <button class="btn-sec" style="width: auto;" onclick="descansarEstalagem()">🛌 Curar (1g)</button>
+                <button class="btn-sec" style="width: auto;" onclick="comprarItem('tochas')">🔥 Tocha (1g)</button>
+                <button class="btn-sec" style="width: auto;" onclick="comprarItem('provisoes')">🍖 Prov. (1g)</button>
+            </div>
+            
+            <button id="btn-entrar-masmorra" class="escondido" style="background: var(--danger); color: #fff; margin-top: 15px; width: 100%;" onclick="window.location.href='masmorra.html'">⚔️ ENTRAR NA MASMORRA (-1 🔥)</button>
+        </div>
+        <div id="log-mundo" class="log-box" style="margin-top: 15px;"></div>
+    </div>
+
+    <div id="overlay-modal" class="escondido"></div>
+    <div id="modal-dado" class="escondido">
+        <h2 id="titulo-dado" style="color: var(--gold); margin-top: 0;">ROLE O DADO!</h2>
+        <p id="desc-dado" style="color: #ccc; font-size: 14px;">Aguardando resultado físico...</p>
+        <div class="grid-dados">
+            <button class="btn-dado" onclick="informarDado(1)">1</button><button class="btn-dado" onclick="informarDado(2)">2</button><button class="btn-dado" onclick="informarDado(3)">3</button>
+            <button class="btn-dado" onclick="informarDado(4)">4</button><button class="btn-dado" onclick="informarDado(5)">5</button><button class="btn-dado" onclick="informarDado(6)">6</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db, doc, getDoc, updateDoc, onSnapshot, signOut, onAuthStateChanged } from "./firebase.js";
+        
+        let UID = null; let PERSONAGEM = null; let MAPA_GLOBAL = {}; const SERVIDOR_ATUAL = "Mundo Alpha";
+        const REGRAS = window.REGRAS;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) { UID = user.uid; carregarJogo(); } 
+            else window.location.href = "index.html";
+        });
+
+        window.deslogar = () => { signOut(auth); };
+
+        async function carregarJogo() {
+            const snap = await getDoc(doc(db, "personagens", UID));
+            if (snap.exists()) {
+                PERSONAGEM = snap.data();
+                if(PERSONAGEM.masmorra) window.location.href = "masmorra.html"; // Se fechou o jogo na masmorra, volta pra lá!
+                iniciarListenerMapa();
+            } else window.location.href = "criacao.html";
+        }
+
+        function iniciarListenerMapa() {
+            onSnapshot(doc(db, "mundos", SERVIDOR_ATUAL), (snap) => {
+                if (snap.exists()) MAPA_GLOBAL = snap.data();
+                atualizarInterface(); desenharMapa();
+            });
+        }
+
+        function atualizarInterface() {
+            document.getElementById('hud-nome').innerText = PERSONAGEM.nome;
+            document.getElementById('hud-pv').innerText = PERSONAGEM.pv_atual;
+            document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro;
+            document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes;
+            document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
+
+            const hexAtual = MAPA_GLOBAL[`${PERSONAGEM.mundo.q},${PERSONAGEM.mundo.r}`];
+            if(!hexAtual) return;
+
+            document.getElementById('hex-coord').innerText = `MAPA-MÚNDI [${PERSONAGEM.mundo.q}, ${PERSONAGEM.mundo.r}]`;
+            document.getElementById('hex-terreno').innerText = `${REGRAS.mundo.terrenos_info[hexAtual.terreno].emoji} ${hexAtual.terreno}`;
+            
+            const btnCid = document.getElementById('acoes-cidade');
+            if(hexAtual.terreno === "Cidade Humana") btnCid.classList.remove('escondido'); else btnCid.classList.add('escondido');
+            
+            const btnMas = document.getElementById('btn-entrar-masmorra');
+            if (hexAtual.masmorra) {
+                document.getElementById('hex-masmorra').innerText = `Masmorra Local: ${hexAtual.masmorra}`;
+                btnMas.classList.remove('escondido');
+            } else {
+                document.getElementById('hex-masmorra').innerText = "Masmorra: Nenhuma";
+                btnMas.classList.add('escondido');
+            }
+        }
+
+        function log(msg) { const div = document.getElementById('log-mundo'); div.innerHTML += `<div style="border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
+
+        let resolveDadoAtual = null;
+        window.pedirDado = function(titulo, desc) { return new Promise((resolve) => { document.getElementById('titulo-dado').innerText = titulo; document.getElementById('desc-dado').innerText = desc; document.getElementById('overlay-modal').classList.remove('escondido'); document.getElementById('modal-dado').classList.remove('escondido'); resolveDadoAtual = resolve; }); };
+        window.informarDado = function(v) { document.getElementById('overlay-modal').classList.add('escondido'); document.getElementById('modal-dado').classList.add('escondido'); if (resolveDadoAtual) { resolveDadoAtual(v); resolveDadoAtual = null; } };
+
+        const HEX_SIZE = 30; const VIZINHOS_HEX = [ [+1, 0], [+1, -1], [0, -1], [-1, 0], [-1, +1], [0, +1] ];
+        function hexParaPixel(q, r) { return { x: HEX_SIZE * (3/2 * q), y: HEX_SIZE * (Math.sqrt(3)/2 * q  +  Math.sqrt(3) * r) }; }
+
+        function desenharMapa() {
+            const cam = document.getElementById('camada-mundo'); cam.innerHTML = "";
+            const m = PERSONAGEM.mundo; const c = hexParaPixel(m.q, m.r); cam.style.transform = `translate(${-c.x}px, ${-c.y}px)`;
+            for(let key in MAPA_GLOBAL) {
+                let [q, r] = key.split(',').map(Number); let div = document.createElement('div'); div.className = "hex-node";
+                let p = hexParaPixel(q, r); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = REGRAS.mundo.terrenos_info[MAPA_GLOBAL[key].terreno].emoji;
+                if(q === m.q && r === m.r) div.classList.add('hex-atual'); else div.onclick = () => viajar(q, r, MAPA_GLOBAL[key]); cam.appendChild(div);
+            }
+            VIZINHOS_HEX.forEach(dir => {
+                let nq = m.q + dir[0]; let nr = m.r + dir[1]; let key = `${nq},${nr}`;
+                if(!MAPA_GLOBAL[key]) {
+                    let div = document.createElement('div'); div.className = "hex-node hex-unexplored";
+                    let p = hexParaPixel(nq, nr); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = "❓"; div.onclick = () => viajar(nq, nr, null); cam.appendChild(div);
+                }
+            });
+        }
+
+        window.viajar = async function(nq, nr, hexConhecido) {
+            let custo = hexConhecido ? REGRAS.mundo.terrenos_info[hexConhecido.terreno].custo : 1;
+            if(PERSONAGEM.provisoes < custo) return alert(`Falta ${custo} Provisão(ões)!`);
+            PERSONAGEM.provisoes -= custo; let key = `${nq},${nr}`;
+
+            if (!MAPA_GLOBAL[key]) {
+                log(`Viajando... (-${custo} 🍖)`);
+                let rT = await pedirDado("NOVO HEXÁGONO", "Role 1d6."); let tNome = REGRAS.mundo.geracao_terreno[rT] || "Planície";
+                MAPA_GLOBAL[key] = { terreno: tNome, masmorra: null }; log(`🗺️ Terreno: ${tNome}`);
+                let rB = await pedirDado("PROCURAR", "Role 1d6. 5+ acha masmorra!");
+                if (rB >= 5) { let rM = await pedirDado("MASMORRA", "Role 1d6."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[tNome][rM - 1]; log(`⚠️ MASMORRA REVELADA!`); }
+                await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] });
+            }
+            PERSONAGEM.mundo.q = nq; PERSONAGEM.mundo.r = nr; updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+        };
+        
+        window.tavernaBoatos = async function() {
+            if(PERSONAGEM.ouro < 1) return; PERSONAGEM.ouro--;
+            let rol = await pedirDado("BOATOS", "Pagou 1g. Role 1d6 (4+).");
+            if (rol >= 4) {
+                let dir = VIZINHOS_HEX[Math.floor(Math.random() * 6)]; let key = `${PERSONAGEM.mundo.q + dir[0]},${PERSONAGEM.mundo.r + dir[1]}`;
+                if(!MAPA_GLOBAL[key]) MAPA_GLOBAL[key] = { terreno: "Planície", masmorra: null };
+                if (!MAPA_GLOBAL[key].masmorra) { let rt = await pedirDado("GERAR", "Role 1d6!"); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[MAPA_GLOBAL[key].terreno][rt-1]; log(`🍺 Masmorra revelada!`); await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] }); }
+            } else log("🍺 Histórias de bêbados... Nada útil.");
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+        };
+        window.descansarEstalagem = function() { if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM.pv_atual = PERSONAGEM.pv_maximo; log("🛌 Curou tudo."); updateDoc(doc(db, "personagens", UID), PERSONAGEM); }};
+        window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Comprou 1 ${i}.`); updateDoc(doc(db, "personagens", UID), PERSONAGEM); }};
+    </script>
+</body>
+</html>

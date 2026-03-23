@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ficha - NoteQuest</title>
+    <style>
+        :root { --bg: #050505; --panel: #151515; --text: #eee; --neon: #0fa; --danger: #f44; --gold: #ffd700; --magic: #0ff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 15px; display: flex; justify-content: center; }
+        .container { background: var(--panel); border: 2px solid var(--gold); padding: 20px; width: 100%; max-width: 600px; border-radius: 8px; }
+        .ficha-box { background: #080808; border: 1px dashed #555; padding: 15px; margin-bottom: 15px; border-radius: 6px;}
+        .ficha-box h3 { margin-top: 0; color: var(--gold); border-bottom: 1px solid #333; padding-bottom: 8px;}
+        .linha-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding: 8px 0; font-size: 14px;}
+        button { background: var(--neon); color: #000; font-weight: bold; padding: 10px; border: none; cursor: pointer; border-radius: 4px; }
+        button.btn-sec { background: transparent; color: var(--gold); border: 1px solid var(--gold); width: 100%; margin-top: 10px; padding: 15px; font-size: 16px;}
+        button.btn-acao-pequeno { padding: 5px 10px; font-size: 12px; width: auto; background: transparent; color: var(--neon); border: 1px solid var(--neon); }
+        button.btn-perigo { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2 style="color: var(--gold); text-align: center; margin-top: 0;">FICHA DO HERÓI</h2>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #333;">
+            <div style="flex: 1;">
+                <span style="color: #888; font-size: 12px;">Raça / Classe</span><br>
+                <strong id="ficha-raca"></strong> / <strong id="ficha-classe"></strong>
+            </div>
+            <div style="flex: 1; text-align: right;">
+                <span style="color: #888; font-size: 12px;">Status Principal</span><br>
+                <span style="color: var(--danger); font-weight: bold;">PV: <span id="ficha-pv-texto">0/0</span></span>
+            </div>
+        </div>
+
+        <div class="ficha-box">
+            <h3>⚔️ Equipamento</h3>
+            <div id="ficha-armaduras">A carregar...</div>
+        </div>
+
+        <div class="ficha-box">
+            <h3 style="color: var(--magic);">✨ Grimório de Magias</h3>
+            <div id="ficha-magias">A carregar...</div>
+        </div>
+
+        <div class="ficha-box">
+            <h3>🎒 Mochila e Recursos</h3>
+            <div style="display: flex; gap: 15px; margin-bottom: 10px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                <span style="color: var(--gold);">💰 <span id="ficha-ouro">0</span></span>
+                <span style="color: #f88;">🍖 <span id="ficha-prov">0</span></span>
+                <span style="color: #fa0;">🔥 <span id="ficha-tochas">0</span></span>
+            </div>
+            <div id="ficha-mochila">A carregar...</div>
+        </div>
+
+        <button class="btn-sec" onclick="window.history.back()">🔙 VOLTAR AO JOGO</button>
+    </div>
+
+    <script type="module">
+        import { auth, db, doc, getDoc, updateDoc, onAuthStateChanged } from "./firebase.js";
+        
+        let UID = null; let PERSONAGEM = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) { UID = user.uid; carregarFicha(); } 
+            else window.location.href = "index.html";
+        });
+
+        async function carregarFicha() {
+            const snap = await getDoc(doc(db, "personagens", UID));
+            if (snap.exists()) { PERSONAGEM = snap.data(); renderizar(); }
+        }
+
+        function renderizar() {
+            document.getElementById('ficha-raca').innerText = PERSONAGEM.raca;
+            document.getElementById('ficha-classe').innerText = PERSONAGEM.classe;
+            document.getElementById('ficha-pv-texto').innerText = `${PERSONAGEM.pv_atual}/${PERSONAGEM.pv_maximo}`;
+            document.getElementById('ficha-ouro').innerText = PERSONAGEM.ouro;
+            document.getElementById('ficha-prov').innerText = PERSONAGEM.provisoes;
+            document.getElementById('ficha-tochas').innerText = PERSONAGEM.tochas;
+
+            let armHtml = `<div class="linha-item">
+                <span>🗡️ <strong>${PERSONAGEM.arma_nome}</strong> (Dano: ${PERSONAGEM.arma_dano})</span>
+                ${PERSONAGEM.arma_nome !== "Desarmado" ? `<button class="btn-acao-pequeno" onclick="desequiparArma()">Desequipar</button>` : ''}
+            </div>`;
+            for(let slot in PERSONAGEM.armaduras) {
+                let a = PERSONAGEM.armaduras[slot]; let nomeExibicao = slot.charAt(0).toUpperCase() + slot.slice(1);
+                armHtml += `<div class="linha-item">
+                    <span>🛡️ <strong>${nomeExibicao}:</strong> ${a.nome} ${a.nome !== "Nenhum" ? `(PV: ${a.pv}/${a.pvmax})` : ''}</span>
+                    ${a.nome !== "Nenhum" ? `<button class="btn-acao-pequeno" onclick="desequiparArmadura('${slot}')">Desequipar</button>` : ''}
+                </div>`;
+            }
+            document.getElementById('ficha-armaduras').innerHTML = armHtml;
+
+            let magHtml = "";
+            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) magHtml = "<span style='color:#888;'>Nenhuma magia conhecida.</span>";
+            else PERSONAGEM.magias.forEach((m, i) => { magHtml += `<div class="linha-item"><div>✨ <strong style="color:var(--neon)">${m.nome}</strong> (${m.usos} usos)</div><button class="btn-acao-pequeno btn-perigo" onclick="descartarMagia(${i})">Esquecer</button></div>`; });
+            document.getElementById('ficha-magias').innerHTML = magHtml;
+
+            let mocHtml = "";
+            if(!PERSONAGEM.mochila || PERSONAGEM.mochila.length === 0) mocHtml = "<span style='color:#888;'>Mochila vazia.</span>";
+            else PERSONAGEM.mochila.forEach((item, i) => {
+                mocHtml += `<div class="linha-item">
+                    <span>🎒 ${item.nome} ${item.qtd ? `(x${item.qtd})` : ''}</span>
+                    <div style="display:flex; gap:5px;">
+                        ${item.equipavel ? `<button class="btn-acao-pequeno" style="color:var(--gold); border-color:var(--gold);" onclick="equiparItem(${i})">Equipar</button>` : ''}
+                        <button class="btn-acao-pequeno btn-perigo" onclick="descartarItem(${i})">Deitar fora</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('ficha-mochila').innerHTML = mocHtml;
+        }
+
+        window.desequiparArma = function() {
+            if(PERSONAGEM.arma_nome === "Desarmado") return;
+            PERSONAGEM.mochila.push({ nome: PERSONAGEM.arma_nome, dano: PERSONAGEM.arma_dano, equipavel: true, tipo: "arma" });
+            PERSONAGEM.arma_nome = "Desarmado"; PERSONAGEM.arma_dano = "1";
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+        };
+
+        window.desequiparArmadura = function(slot) {
+            let arm = PERSONAGEM.armaduras[slot]; if(arm.nome === "Nenhum") return;
+            PERSONAGEM.mochila.push({ nome: arm.nome, pv: arm.pv, pvmax: arm.pvmax, equipavel: true, tipo: slot });
+            PERSONAGEM.armaduras[slot] = { nome: "Nenhum", pv: 0, pvmax: 0 };
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+        };
+
+        window.equiparItem = function(index) {
+            let item = PERSONAGEM.mochila[index];
+            if(item.tipo === "arma") {
+                if(PERSONAGEM.arma_nome !== "Desarmado") desequiparArma();
+                PERSONAGEM.arma_nome = item.nome; PERSONAGEM.arma_dano = item.dano;
+            } else if (PERSONAGEM.armaduras[item.tipo]) {
+                if(PERSONAGEM.armaduras[item.tipo].nome !== "Nenhum") desequiparArmadura(item.tipo);
+                PERSONAGEM.armaduras[item.tipo] = { nome: item.nome, pv: item.pv, pvmax: item.pvmax };
+            }
+            PERSONAGEM.mochila.splice(index, 1);
+            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+        };
+
+        window.descartarItem = function(i) { if(confirm("Deitar fora?")) { PERSONAGEM.mochila.splice(i, 1); updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar()); } };
+        window.descartarMagia = function(i) { if(confirm("Esquecer magia?")) { PERSONAGEM.magias.splice(i, 1); updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar()); } };
+    </script>
+</body>
+</html>

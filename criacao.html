@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forja do Herói - NoteQuest</title>
+    <style>
+        :root { --bg: #050505; --panel: #151515; --text: #eee; --neon: #0fa; --gold: #ffd700; --danger: #f44; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; display: flex; justify-content: center; padding: 20px; }
+        .container { background: var(--panel); border: 2px solid var(--gold); padding: 30px; width: 100%; max-width: 400px; border-radius: 8px; text-align: center; }
+        input, select { background: #000; color: #fff; border: 1px solid #555; padding: 12px; width: 100%; margin-bottom: 15px; font-family: inherit; font-size: 16px; }
+        button { background: var(--gold); color: #000; font-weight: bold; padding: 14px; border: none; cursor: pointer; width: 100%; margin-bottom: 10px; border-radius: 6px; font-size: 16px; }
+        button.btn-perigo { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    </style>
+    <script src="regras.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h2 style="color: var(--gold); margin-top: 0;">FORJA DO HERÓI</h2>
+        <input type="text" id="nome" placeholder="Nome do Personagem">
+        
+        <div style="text-align: left; margin-bottom: 5px; color: #aaa;">Raça:</div>
+        <select id="raca"></select>
+        
+        <div style="text-align: left; margin-bottom: 5px; color: #aaa;">Classe:</div>
+        <select id="classe"></select>
+        
+        <button id="btn-criar">FORJAR HERÓI</button>
+        <button class="btn-perigo" onclick="deslogar()">CANCELAR E SAIR</button>
+    </div>
+
+    <script type="module">
+        import { auth, db, doc, setDoc, signOut, onAuthStateChanged } from "./firebase.js";
+        
+        let UID = null;
+
+        // Preenche as opções usando o regras.js
+        const selectRaca = document.getElementById('raca');
+        const selectClasse = document.getElementById('classe');
+        for (let r in window.REGRAS.racas) selectRaca.innerHTML += `<option value="${r}">${r} (+${window.REGRAS.racas[r].pv} PV)</option>`;
+        for (let c in window.REGRAS.classes) selectClasse.innerHTML += `<option value="${c}">${c} (Arma: ${window.REGRAS.classes[c].arma})</option>`;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) UID = user.uid;
+            else window.location.href = "index.html"; // Se não tiver logado, expulsa pro index
+        });
+
+        window.deslogar = () => { signOut(auth); };
+
+        document.getElementById('btn-criar').onclick = async () => {
+            if(!UID) return;
+            const raca = document.getElementById('raca').value;
+            const classe = document.getElementById('classe').value;
+            const pvTotal = window.REGRAS.racas[raca].pv + window.REGRAS.classes[classe].pv;
+            
+            // Sorteio de magias
+            let magiasSorteadas = []; let pool = [...window.REGRAS.magias_basicas];
+            for (let i = 0; i < (window.REGRAS.racas[raca].magias + window.REGRAS.classes[classe].magias); i++) {
+                if (pool.length === 0) break;
+                const idx = Math.floor(Math.random() * pool.length);
+                magiasSorteadas.push(pool[idx]); pool.splice(idx, 1);
+            }
+
+            const novoPersonagem = {
+                nome: document.getElementById('nome').value || "Aventureiro",
+                raca: raca, classe: classe, pv_maximo: pvTotal, pv_atual: pvTotal,
+                ouro: 5, tochas: 10, provisoes: 20,
+                arma_nome: window.REGRAS.classes[classe].arma, arma_dano: window.REGRAS.classes[classe].dano,
+                armaduras: { elmo: {nome:"Nenhum",pv:0,pvmax:0}, peitoral: {nome:"Nenhum",pv:0,pvmax:0}, ombreiras: {nome:"Nenhum",pv:0,pvmax:0}, braceletes: {nome:"Nenhum",pv:0,pvmax:0}, botas: {nome:"Nenhum",pv:0,pvmax:0} },
+                magias: magiasSorteadas, mochila: [], mundo: { q: 0, r: 0 }, masmorra: null 
+            };
+            
+            await setDoc(doc(db, "personagens", UID), novoPersonagem);
+            window.location.href = "mundo.html"; // Redireciona para o jogo!
+        };
+    </script>
+</body>
+</html>
