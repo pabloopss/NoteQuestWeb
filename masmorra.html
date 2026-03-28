@@ -17,10 +17,16 @@
         .top-hud { display: flex; justify-content: space-between; align-items: center; background: #0a0a0a; padding: 10px; border: 1px solid var(--gold); width: 100%; max-width: 600px; border-radius: 6px; margin-bottom: 15px;}
         .mapa-viewport { position: relative; background: #050510; height: 350px; border: 1px solid #44f; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 15px;}
         .mapa-camada { position: absolute; transition: transform 0.4s ease-out; }
+        
         .sala-node { position: absolute; width: 40px; height: 40px; background: #222; border: 1px solid #777; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; transition: 0.2s;}
         .sala-node:hover { filter: brightness(1.5); border-color: var(--gold); z-index: 10;}
         .sala-atual { box-shadow: 0 0 15px var(--danger); border-color: var(--danger); background: #400;}
-        .porta-node { position: absolute; width: 22px; height: 22px; background: #000; border: 1px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 5;}
+        
+        .porta-node { position: absolute; width: 22px; height: 22px; background: #000; border: 1px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; z-index: 5; font-weight: bold; color: #fff;}
+        .porta-node.porta-x { border-color: var(--danger); color: var(--danger); }
+        .porta-node.porta-ok { border-color: var(--neon); color: var(--neon); }
+
+        .monstro-alerta { position: absolute; top: -5px; right: -5px; background: var(--danger); border-radius: 50%; width: 15px; height: 15px; font-size: 10px; display: flex; justify-content: center; align-items: center; }
 
         .log-box { background: #000; border: 1px solid var(--danger); height: 180px; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.5; border-radius: 4px; }
         .cartao-monstro { background: #220000; border: 1px solid var(--danger); padding: 10px; text-align: center; border-radius: 4px; width: 120px; cursor: pointer;}
@@ -28,10 +34,10 @@
         .cartao-monstro.morto { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 
         #overlay-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 999; }
-        #modal-dado { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid var(--gold); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 350px; }
+        .modal-centro { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid var(--gold); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 350px; }
+        
         .grid-dados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
         .btn-dado { background: #222; color: var(--gold); border: 2px solid var(--gold); font-size: 24px; padding: 15px; border-radius: 6px;}
-        #modal-magias { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #001122; border: 2px solid var(--magic); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 400px; }
         .linha-magia { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #003366; padding: 10px 0; }
     </style>
     <script src="regras.js"></script>
@@ -56,11 +62,11 @@
             <h3 id="dg-nome" style="color: var(--danger); margin: 0;">Masmorra</h3>
             <span id="dg-status" style="font-size: 13px; color: var(--magic); border: 1px dashed #555; padding: 4px 8px; border-radius: 4px;">Nível: 1</span>
         </div>
-        <div style="text-align: center; font-size: 11px; color: #888; margin-bottom: 5px;">Só é possível escapar pelo Portão Principal na sala [0,0].</div>
+        <div style="text-align: center; font-size: 11px; color: #888; margin-bottom: 5px;">A porta principal fica em [0,0]. Cuidado com o que deixas vivo para trás.</div>
         
         <div class="mapa-viewport"><div class="mapa-camada" id="camada-masmorra"></div></div>
         
-        <button class="btn-perigo" onclick="tentarSairMasmorra()">🏃 SAIR PELA ENTRADA PRINCIPAL</button>
+        <button class="btn-perigo" onclick="tentarSairMasmorra()">🏃 SAIR PELA ENTRADA PRINCIPAL [0,0]</button>
         <div id="log-masmorra" class="log-box" style="margin-top: 10px;"></div>
     </div>
 
@@ -73,29 +79,47 @@
             <button id="btn-atacar" class="btn-perigo" style="padding: 15px; font-size: 16px; margin: 0;" onclick="turnoJogador()">🗡️ ATACAR (1d6)</button>
             <button id="btn-magia" class="btn-magia" style="padding: 15px; font-size: 16px; margin: 0;" onclick="abrirGrimorio()">✨ MAGIA</button>
         </div>
+        <button id="btn-fugir-combate" class="btn-sec" onclick="fugirCombate()">🏃 TENTAR FUGIR</button>
     </div>
 
     <div id="overlay-modal" class="escondido"></div>
-    <div id="modal-dado" class="escondido">
+    
+    <div id="modal-dado" class="modal-centro escondido">
         <h2 id="titulo-dado" style="color: var(--gold); margin-top: 0;">ROLE O DADO!</h2>
-        <p id="desc-dado" style="color: #ccc; font-size: 14px;">Os deuses observam o seu lançamento...</p>
+        <p id="desc-dado" style="color: #ccc; font-size: 14px;">Os deuses observam...</p>
         <div class="grid-dados">
             <button class="btn-dado" onclick="informarDado(1)">1</button><button class="btn-dado" onclick="informarDado(2)">2</button><button class="btn-dado" onclick="informarDado(3)">3</button>
             <button class="btn-dado" onclick="informarDado(4)">4</button><button class="btn-dado" onclick="informarDado(5)">5</button><button class="btn-dado" onclick="informarDado(6)">6</button>
         </div>
     </div>
-    <div id="modal-magias" class="escondido">
+
+    <div id="modal-magias" class="modal-centro escondido" style="border-color: var(--magic);">
         <h2 style="color: var(--magic); margin-top: 0;">✨ GRIMÓRIO</h2>
         <div id="lista-magias-combate" style="text-align: left; margin-bottom: 15px;"></div>
-        <button class="btn-sec" onclick="fecharGrimorio()">FECHAR</button>
+        <button class="btn-sec" onclick="fecharModais()">FECHAR</button>
+    </div>
+
+    <div id="modal-porta" class="modal-centro escondido" style="border-color: #f88;">
+        <h2 style="color: #f88; margin-top: 0;">PORTA TRANCADA (X)</h2>
+        <p style="color: #ccc; font-size: 14px; margin-bottom: 20px;">Esta porta não cede. O que fazes?</p>
+        <button class="btn-sec" style="color: var(--gold); border-color: var(--gold);" onclick="acaoPorta('tocha')">🔥 QUEIMAR FECHADURA (-1 Tocha)</button>
+        <button class="btn-perigo" onclick="acaoPorta('arrombar')">💥 ARROMBAR (Atrai todos os monstros da área!)</button>
+        <button class="btn-sec" style="color: #888; border-color: #555; margin-top: 10px;" onclick="fecharModais()">RECUSAR</button>
+    </div>
+
+    <div id="modal-furtividade" class="modal-centro escondido" style="border-color: #aaa;">
+        <h2 style="color: #aaa; margin-top: 0;">SALA OCUPADA</h2>
+        <p style="color: #ccc; font-size: 14px; margin-bottom: 20px;">Existem monstros vivos nesta sala. Queres tentar passar furtivamente?</p>
+        <button class="btn-sec" style="color: var(--neon); border-color: var(--neon);" onclick="acaoFurtividade('furtividade')">🥷 TENTAR FURTIVIDADE (1d6)</button>
+        <button class="btn-perigo" onclick="acaoFurtividade('atacar')">⚔️ ATACAR DE FRENTE</button>
+        <button class="btn-sec" style="color: #888; border-color: #555; margin-top: 10px;" onclick="fecharModais()">RECUSAR</button>
     </div>
 
     <script type="module">
         import { auth, db, doc, getDoc, updateDoc, onAuthStateChanged } from "./firebase.js";
         
         const CHAR_ID = sessionStorage.getItem('charId');
-        let PERSONAGEM = null;
-        const REGRAS = window.REGRAS;
+        let PERSONAGEM = null; const REGRAS = window.REGRAS;
         let COMBATE_ATUAL = { ativo: false, monstros: [], alvoIndex: 0, temEspolios: false, isBoss: false };
 
         if (!CHAR_ID) window.location.href = "selecao.html";
@@ -109,7 +133,13 @@
             const snap = await getDoc(doc(db, "personagens", CHAR_ID));
             if (snap.exists()) {
                 PERSONAGEM = snap.data();
-                if(!PERSONAGEM.masmorra) { window.location.href = "mundo.html"; return; }
+                if(!PERSONAGEM.masmorra || !PERSONAGEM.masmorra.mapa["0,0"].portas) { 
+                    alert("Aviso: A tua masmorra antiga colapsou! Retornando ao mundo.");
+                    PERSONAGEM.masmorra = null;
+                    await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
+                    window.location.href = "mundo.html"; 
+                    return; 
+                }
                 atualizarInterface(); desenharMapaMasmorra();
             } else window.location.href = "selecao.html";
         }
@@ -125,8 +155,15 @@
 
         let resolveDadoAtual = null;
         window.pedirDado = function(titulo, desc) { return new Promise((resolve) => { document.getElementById('titulo-dado').innerText = titulo; document.getElementById('desc-dado').innerText = desc; document.getElementById('overlay-modal').classList.remove('escondido'); document.getElementById('modal-dado').classList.remove('escondido'); resolveDadoAtual = resolve; }); };
-        window.informarDado = function(v) { document.getElementById('overlay-modal').classList.add('escondido'); document.getElementById('modal-dado').classList.add('escondido'); if (resolveDadoAtual) { resolveDadoAtual(v); resolveDadoAtual = null; } };
+        window.informarDado = function(v) { fecharModais(); if (resolveDadoAtual) { resolveDadoAtual(v); resolveDadoAtual = null; } };
 
+        window.fecharModais = function() {
+            ['modal-dado', 'modal-magias', 'modal-porta', 'modal-furtividade', 'overlay-modal'].forEach(id => document.getElementById(id).classList.add('escondido'));
+        };
+
+        // ==========================================
+        // DESENHO E PORTAS
+        // ==========================================
         function desenharMapaMasmorra() {
             const cam = document.getElementById('camada-masmorra'); cam.innerHTML = "";
             const m = PERSONAGEM.masmorra; const SIZE = 60; 
@@ -134,23 +171,36 @@
 
             for(let key in m.mapa) {
                 let [sx, sy] = key.split(',').map(Number);
-                let div = document.createElement('div'); div.className = "sala-node"; div.innerText = m.mapa[key].icone || "⬛";
+                let sala = m.mapa[key];
+                
+                let div = document.createElement('div'); div.className = "sala-node"; div.innerText = sala.icone || "⬛";
                 div.style.left = `calc(50% + ${sx * SIZE}px - 20px)`; div.style.top = `calc(50% + ${sy * SIZE}px - 20px)`;
                 
                 if(sx === m.x && sy === m.y) div.classList.add('sala-atual');
-                else {
-                    div.title = "Avançar furtivamente para esta sala";
-                    div.onclick = () => moverParaSala(sx, sy);
+                else { div.title = "Mover para aqui"; div.onclick = () => clicarSalaPassada(sx, sy); }
+                
+                if (sala.monstros && sala.monstros.length > 0) {
+                    let alerta = document.createElement('div'); alerta.className = "monstro-alerta"; alerta.innerText = "⚠️";
+                    div.appendChild(alerta);
                 }
+                
                 cam.appendChild(div);
 
-                if (m.mapa[key].portasRestantes > 0 && sx === m.x && sy === m.y) {
-                    [[0,-1], [0,1], [1,0], [-1,0]].forEach(d => {
-                        let nx = sx + d[0], ny = sy + d[1];
+                // Desenha as portas (Só mostramos portas na sala atual ou se precisarmos ver as opções)
+                if (sx === m.x && sy === m.y && sala.portas) {
+                    sala.portas.forEach((porta, index) => {
+                        let nx = porta.nx, ny = porta.ny;
                         if(!m.mapa[`${nx},${ny}`]) {
-                            let porta = document.createElement('div'); porta.className = "porta-node"; porta.innerText = "🚪";
-                            porta.style.left = `calc(50% + ${sx * SIZE + (d[0]*30)}px - 11px)`; porta.style.top = `calc(50% + ${sy * SIZE + (d[1]*30)}px - 11px)`;
-                            porta.onclick = () => interagirPorta(nx, ny, sx, sy); cam.appendChild(porta);
+                            let pDiv = document.createElement('div'); pDiv.className = "porta-node"; 
+                            
+                            pDiv.innerText = porta.status === "✅" ? "✔" : porta.status;
+                            if(porta.status === "X") pDiv.classList.add("porta-x");
+                            if(porta.status === "✅") pDiv.classList.add("porta-ok");
+                            
+                            let dirX = nx - sx; let dirY = ny - sy;
+                            pDiv.style.left = `calc(50% + ${sx * SIZE + (dirX*30)}px - 11px)`; pDiv.style.top = `calc(50% + ${sy * SIZE + (dirY*30)}px - 11px)`;
+                            pDiv.onclick = () => interagirPorta(sx, sy, index); 
+                            cam.appendChild(pDiv);
                         }
                     });
                 }
@@ -158,65 +208,172 @@
             updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); atualizarInterface();
         }
 
-        // ==========================================
-        // MECÂNICA DE FURTIVIDADE E MOVIMENTO
-        // ==========================================
-        window.moverParaSala = async function(nx, ny) {
-            let furtividade = await pedirDado("FURTIVIDADE", "Andas pelas sombras dos corredores antigos. Rola 1d6 para passares despercebido pelos perigos remanescentes.");
-            
-            if (furtividade <= 2) {
-                logMasmorra("Fizeste barulho! Algo espreita nas sombras...", "var(--danger)");
-                let r1 = await pedirDado("MONSTRO ERRANTE", "Foste emboscado! Rola 1d6 para o encontro."); 
-                let r2 = await pedirDado("MONSTRO ERRANTE", "Rola o segundo 1d6.");
-                let enc = parseInt(r1) + parseInt(r2);
-                let tb = REGRAS.encontros[PERSONAGEM.masmorra.nome] || REGRAS.encontros["Padrao"];
+        window.interagirPorta = async function(sx, sy, portaIndex) {
+            let sala = PERSONAGEM.masmorra.mapa[`${sx},${sy}`];
+            let porta = sala.portas[portaIndex];
+
+            if (porta.status === "?") {
+                let rP = await pedirDado("A PORTA MISTERIOSA", "Rola 1d6 para o estado da porta."); 
+                let p = REGRAS.estado_porta[rP]; 
                 
-                // Movo o personagem de qualquer forma
-                PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny;
-                if(tb[enc]) { iniciarCombate(tb[enc]); return; } 
-                else logMasmorra("Foi apenas o vento. Continuas vivo.", "#888");
-            } else {
-                logMasmorra(`Passaste em silêncio. Chegaste à sala [${nx},${ny}].`, "#aaa");
+                if (p.status === "trancada") { porta.status = "X"; logMasmorra("A porta está trancada. (X)", "var(--danger)"); } 
+                else { porta.status = "✅"; logMasmorra("A porta está destrancada! (✅)", "var(--neon)"); }
+                desenharMapaMasmorra();
+                return;
             }
-            
-            PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny;
-            desenharMapaMasmorra();
+
+            if (porta.status === "X") {
+                document.getElementById('modal-porta').classList.remove('escondido');
+                document.getElementById('overlay-modal').classList.remove('escondido');
+                window.portaInteracao = { sx, sy, portaIndex };
+                return;
+            }
+
+            if (porta.status === "✅") {
+                avancarMasmorra(sx, sy, porta.nx, porta.ny, false);
+            }
         };
 
-        window.interagirPorta = async function(nx, ny, sx, sy) {
-            let rP = await pedirDado("A PORTA MISTERIOSA", "Encaras as tábuas de carvalho antigas. Rola 1d6 para descobrir o estado da porta."); 
-            let p = REGRAS.estado_porta[rP]; logMasmorra(p.msg, "var(--gold)");
-            
-            if (p.status === "trancada") { if (confirm("Gastar 1 TOCHA (🔥)?")) { if(PERSONAGEM.tochas > 0) { PERSONAGEM.tochas--; logMasmorra("As chamas derretem a velha fechadura. (-1 🔥)"); } else return alert("Não tens tochas suficientes!"); } else return; }
+        window.acaoPorta = function(acao) {
+            fecharModais();
+            let p = window.portaInteracao;
+            let porta = PERSONAGEM.masmorra.mapa[`${p.sx},${p.sy}`].portas[p.portaIndex];
 
-            PERSONAGEM.masmorra.mapa[`${sx},${sy}`].portasRestantes--;
+            if (acao === 'tocha') {
+                if(PERSONAGEM.tochas <= 0) return alert("Não tens tochas suficientes!");
+                PERSONAGEM.tochas--; porta.status = "✅";
+                logMasmorra("Fechadura derretida em silêncio. (-1 🔥)", "var(--gold)");
+                desenharMapaMasmorra();
+            } else if (acao === 'arrombar') {
+                porta.status = "✅";
+                logMasmorra("BAM! Arrombaste a porta! O estrondo ecoa pelos corredores...", "var(--danger)");
+                avancarMasmorra(p.sx, p.sy, porta.nx, porta.ny, true); // true = FEZ BARULHO (A Horda!)
+            }
+        };
 
-            let rS = await pedirDado("O QUE SE ESCONDE ALÉM?", "Rola 1d6 para desvendar a geometria do local (1-3 Corredor, 4-6 Sala)."); 
+        // ==========================================
+        // GERAÇÃO DE NOVAS SALAS E A HORDA
+        // ==========================================
+        async function avancarMasmorra(sx, sy, nx, ny, fezBarulho) {
+            let rS = await pedirDado("NOVA ÁREA", "O que se esconde além? (1-3 Corredor, 4-6 Sala)"); 
             let tipoArea = rS <= 3 ? "Corredor" : "Sala";
             
-            let rDetalhe = await pedirDado(`A FORMA DO ${tipoArea.toUpperCase()}`, "Rola 1d6 na tabela para desenhar o mapa.");
+            let rDetalhe = await pedirDado(`O(A) ${tipoArea.toUpperCase()}`, "Rola 1d6 na tabela para desenhar.");
             let seg = REGRAS.segmentos[tipoArea].find(s => s.min <= rDetalhe && s.max >= rDetalhe); 
             
+            // Chefe
             if (PERSONAGEM.masmorra.nivel >= 3 && tipoArea === "Sala") {
-                let rC = await pedirDado("O COVIL DO CHEFE!", "Sentes um calafrio na espinha. Rola 1d6 para determinar o Lorde deste abismo!"); 
+                let rC = await pedirDado("O COVIL DO CHEFE!", "Atingiste o Nível 3. Rola 1d6 para determinar o Lorde!"); 
                 let tb = REGRAS.chefes[PERSONAGEM.masmorra.nome] || REGRAS.chefes["Padrao"];
-                PERSONAGEM.masmorra.mapa[`${nx},${ny}`] = { tipo: "Chefe", icone: "💀", portasRestantes: 0, explorada: true };
+                PERSONAGEM.masmorra.mapa[`${nx},${ny}`] = { tipo: "Chefe", icone: "💀", portas: [], monstros: [], explorada: true };
+                PERSONAGEM.masmorra.lastX = sx; PERSONAGEM.masmorra.lastY = sy;
                 PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny; desenharMapaMasmorra();
                 alert(`OS PORTÕES DO INFERNO ABREM-SE!\nEncontraste: ${tb[rC-1]}`); iniciarCombate(tb[rC-1], true); return;
             }
 
-            PERSONAGEM.masmorra.mapa[`${nx},${ny}`] = { tipo: seg.tipo, icone: (tipoArea === "Corredor" ? "🔲" : "💠"), portasRestantes: seg.portas, explorada: true };
+            // Novas portas
+            let dirs = [[0,-1], [0,1], [1,0], [-1,0]].sort(() => Math.random() - 0.5);
+            let portasNovas = [];
+            for(let d of dirs) {
+                let futuroX = nx + d[0], futuroY = ny + d[1];
+                if(!PERSONAGEM.masmorra.mapa[`${futuroX},${futuroY}`] && portasNovas.length < seg.portas) {
+                    portasNovas.push({ nx: futuroX, ny: futuroY, status: "?" });
+                }
+            }
+
+            PERSONAGEM.masmorra.mapa[`${nx},${ny}`] = { tipo: seg.tipo, icone: (tipoArea === "Corredor" ? "🔲" : "💠"), portas: portasNovas, monstros: [], explorada: true };
+            PERSONAGEM.masmorra.lastX = sx; PERSONAGEM.masmorra.lastY = sy;
             PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny;
             
-            logMasmorra(`🗺️ Nova área: ${seg.tipo} (${seg.desc}).`, "var(--magic)"); desenharMapaMasmorra();
+            if (seg.tipo === "Escadaria") { PERSONAGEM.masmorra.nivel++; logMasmorra(`🪜 Desceste para o Nível ${PERSONAGEM.masmorra.nivel}!`, "var(--neon)"); }
+            logMasmorra(`🗺️ ${seg.tipo} (${seg.desc}).`, "var(--magic)"); desenharMapaMasmorra();
 
+            // Geração de Monstros e Horda
+            let novosMonstrosStr = null;
             if (tipoArea === "Sala") {
-                let r1 = await pedirDado("TENSÃO NA SALA", "As sombras movem-se. Rola o primeiro 1d6."); let r2 = await pedirDado("TENSÃO NA SALA", "Rola o segundo 1d6.");
+                let r1 = await pedirDado("TENSÃO NA SALA", "Rola o primeiro 1d6."); let r2 = await pedirDado("TENSÃO NA SALA", "Rola o segundo 1d6.");
                 let enc = parseInt(r1) + parseInt(r2);
                 if (enc !== 7 && enc !== 8) {
                     let tb = REGRAS.encontros[PERSONAGEM.masmorra.nome] || REGRAS.encontros["Padrao"];
-                    if(tb[enc]) { logMasmorra(`⚔️ Inimigo à vista: ${tb[enc]}`, "var(--danger)"); iniciarCombate(tb[enc]); }
-                } else logMasmorra("A sala está estranhamente vazia.", "#888");
+                    if(tb[enc]) novosMonstrosStr = tb[enc];
+                }
+            }
+
+            if (fezBarulho) {
+                logMasmorra("⚠️ O estrondo do arrombamento atraiu a horda!", "var(--danger)");
+                let hordaAgrupada = [];
+                // Suga os monstros de todas as salas
+                for(let key in PERSONAGEM.masmorra.mapa) {
+                    let salaVarredura = PERSONAGEM.masmorra.mapa[key];
+                    if(salaVarredura.monstros && salaVarredura.monstros.length > 0) {
+                        hordaAgrupada = hordaAgrupada.concat(salaVarredura.monstros);
+                        salaVarredura.monstros = []; // Limpa a sala
+                    }
+                }
+                
+                // Adiciona os monstros da nova sala se houver
+                if(novosMonstrosStr) {
+                    let parsing = parseMonstroString(novosMonstrosStr);
+                    hordaAgrupada = hordaAgrupada.concat(parsing);
+                }
+
+                if(hordaAgrupada.length > 0) {
+                    logMasmorra(`Uma verdadeira legião ataca-te!`, "var(--danger)");
+                    iniciarCombateJaParseado(hordaAgrupada);
+                } else {
+                    logMasmorra("Felizmente, não havia ninguém por perto para ouvir.", "#aaa");
+                }
+            } else {
+                // Modo Normal (Silencioso)
+                if(novosMonstrosStr) {
+                    logMasmorra(`⚔️ Inimigo à vista: ${novosMonstrosStr}`, "var(--danger)");
+                    iniciarCombate(novosMonstrosStr);
+                }
+            }
+        }
+
+        // ==========================================
+        // FURTIVIDADE E MOVIMENTO (BACKTRACKING)
+        // ==========================================
+        window.clicarSalaPassada = function(nx, ny) {
+            let salaAlvo = PERSONAGEM.masmorra.mapa[`${nx},${ny}`];
+            PERSONAGEM.masmorra.lastX = PERSONAGEM.masmorra.x;
+            PERSONAGEM.masmorra.lastY = PERSONAGEM.masmorra.y;
+
+            if (salaAlvo.monstros && salaAlvo.monstros.length > 0) {
+                document.getElementById('modal-furtividade').classList.remove('escondido');
+                document.getElementById('overlay-modal').classList.remove('escondido');
+                window.salaFurtividade = { nx, ny };
+            } else {
+                PERSONAGEM.masmorra.x = nx; PERSONAGEM.masmorra.y = ny;
+                logMasmorra(`Retornaste em segurança.`, "#aaa");
+                desenharMapaMasmorra();
+            }
+        };
+
+        window.acaoFurtividade = async function(acao) {
+            fecharModais();
+            let p = window.salaFurtividade;
+            let sala = PERSONAGEM.masmorra.mapa[`${p.nx},${p.ny}`];
+
+            PERSONAGEM.masmorra.x = p.nx; PERSONAGEM.masmorra.y = p.ny;
+
+            if (acao === 'furtividade') {
+                let rF = await pedirDado("FURTIVIDADE", "Rola 1d6. 4 ou mais para passares despercebido.");
+                if (rF >= 4) {
+                    logMasmorra("Passaste pelas sombras sem acordar os perigos.", "var(--neon)");
+                    desenharMapaMasmorra();
+                } else {
+                    logMasmorra("Fizeste barulho! Eles viram-te!", "var(--danger)");
+                    let monstros = [...sala.monstros];
+                    sala.monstros = []; 
+                    iniciarCombateJaParseado(monstros);
+                }
+            } else if (acao === 'atacar') {
+                logMasmorra("Gritas e assumes posição de ataque!", "var(--danger)");
+                let monstros = [...sala.monstros];
+                sala.monstros = [];
+                iniciarCombateJaParseado(monstros);
             }
         };
 
@@ -224,49 +381,46 @@
             if(PERSONAGEM.masmorra.x === 0 && PERSONAGEM.masmorra.y === 0) {
                 PERSONAGEM.masmorra = null; 
                 updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => { 
-                    alert("A luz do sol atinge o teu rosto. Conseguiste escapar!");
+                    alert("A luz do sol atinge o teu rosto. Escapaste da Masmorra!");
                     window.location.href = "mundo.html"; 
                 });
             } else {
-                alert("A porta principal fica na sala [0,0]! Clica nas salas do mapa para navegar furtivamente até à saída.");
+                alert("Apenas podes escapar pelo Portão Principal na sala [0,0]! Retorna pelo mapa.");
             }
         };
 
-        // COMBATE
+        // ==========================================
+        // COMBATE (COM CORREÇÃO DE NaN)
+        // ==========================================
         function parseMonstroString(str) {
-            let qtd = 1; let nome = str;
-            let matchQtd = str.match(/^(\d+)\s+(.*)/);
+            let qtd = 1; let nome = str; let matchQtd = str.match(/^(\d+)\s+(.*)/); 
             if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; }
             let pv = 1, dano = 1, habs = [];
             if (nome.includes('(')) {
-                let partes = nome.split('(');
-                nome = partes[0].trim();
+                let partes = nome.split('('); nome = partes[0].trim();
                 let stats = partes[1].replace(')', '').split(';');
-                stats.forEach(s => {
-                    s = s.trim().toLowerCase();
-                    if(s.includes('pv')) {
-                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
-                        if(!isNaN(val)) pv = val;
-                    } else if(s.includes('dano')) {
-                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
-                        if(!isNaN(val)) dano = val;
-                    } else {
-                        habs.push(s);
-                    }
+                stats.forEach(s => { 
+                    s = s.trim().toLowerCase(); 
+                    if(s.includes('pv')) { let val = parseInt(s.replace(/\D/g, '')); if(!isNaN(val)) pv = val; } 
+                    else if(s.includes('dano')) { let val = parseInt(s.replace(/\D/g, '')); if(!isNaN(val)) dano = val; } 
+                    else habs.push(s); 
                 });
             }
-            let arr = [];
-            for(let i=0; i<qtd; i++) {
-                arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true });
-            }
+            let arr = []; for(let i=0; i<qtd; i++) arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true });
             return arr;
         }
 
         window.iniciarCombate = function(str, isBoss = false) {
-            COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0, temEspolios: str.toLowerCase().includes("espólio") || str.toLowerCase().includes("tesouro"), isBoss: isBoss };
-            document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido');
-            document.getElementById('log-combate').innerHTML = ""; logCombate(`As lâminas cruzam-se! Enfrentas: ${str}`, "var(--danger)"); renderizarInimigos();
+            let monstros = parseMonstroString(str);
+            let temEspolios = str.toLowerCase().includes("espólio") || str.toLowerCase().includes("tesouro");
+            iniciarCombateJaParseado(monstros, isBoss, temEspolios);
         };
+
+        function iniciarCombateJaParseado(arrMonstros, isBoss = false, temEspolios = false) {
+            COMBATE_ATUAL = { ativo: true, monstros: arrMonstros, alvoIndex: 0, temEspolios: temEspolios, isBoss: isBoss };
+            document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido');
+            document.getElementById('log-combate').innerHTML = ""; logCombate(`As lâminas cruzam-se!`, "var(--danger)"); renderizarInimigos();
+        }
 
         function renderizarInimigos() {
             const div = document.getElementById('combate-inimigos'); div.innerHTML = "";
@@ -278,20 +432,17 @@
         }
 
         window.turnoJogador = async function() {
-            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return alert("Tens de mirar num inimigo vivo!");
-            let rD = parseInt(await pedirDado("O GOLPE DE MISERICÓRDIA", "Rola 1d6 para determinar o teu dano."));
-            let mD = 0; if(PERSONAGEM.arma_dano.includes('+')) mD = parseInt(PERSONAGEM.arma_dano.split('+')[1]); else if(PERSONAGEM.arma_dano.includes('-')) mD = -parseInt(PERSONAGEM.arma_dano.split('-')[1]);
-            let dF = Math.max(0, rD + mD); let msg = `⚔️ Atacaste [Dado ${rD}]: ${dF} de dano!`;
-            
-            if (rD === 6 && alvo.habilidades.some(h => h.includes("ponto fraco"))) { dF *= 2; msg += " (UM GOLPE CRÍTICO!)"; }
-            if (rD === 1 && alvo.habilidades.some(h => h.includes("regen"))) { alvo.pv_atual = Math.min(alvo.pv_max, alvo.pv_atual + 6); msg += " (A criatura regenerou-se!)"; }
-            if (rD === 1 && alvo.habilidades.some(h => h.includes("explosivo"))) { PERSONAGEM.pv_atual -= alvo.pv_atual; msg += " 💥 A CRIATURA EXPLODIU!"; dF = 999; }
-            
+            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return alert("Mirar num inimigo vivo!");
+            let rD = parseInt(await pedirDado("O GOLPE", "Sentes o peso da arma. Rola 1d6.")); let mD = 0; if(PERSONAGEM.arma_dano.includes('+')) mD = parseInt(PERSONAGEM.arma_dano.split('+')[1]); else if(PERSONAGEM.arma_dano.includes('-')) mD = -parseInt(PERSONAGEM.arma_dano.split('-')[1]);
+            let dF = Math.max(0, rD + mD); let msg = `Atacaste [Dado ${rD}]: ${dF} de dano!`;
+            if (rD === 6 && alvo.habilidades.some(h => h.includes("ponto fraco"))) { dF *= 2; msg += " (GOLPE CRÍTICO!)"; }
+            if (rD === 1 && alvo.habilidades.some(h => h.includes("regen"))) { alvo.pv_atual = Math.min(alvo.pv_max, alvo.pv_atual + 6); msg += " (Regenerou-se!)"; }
+            if (rD === 1 && alvo.habilidades.some(h => h.includes("explosivo"))) { PERSONAGEM.pv_atual -= alvo.pv_atual; msg += " 💥 A BESTA EXPLODIU!"; dF = 999; }
             aplicarDanoMonstro(alvo, dF, msg);
         };
 
         window.abrirGrimorio = function() {
-            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) return alert("A tua mente não domina as artes arcanas!");
+            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) return alert("Não tens magias!");
             let lista = document.getElementById('lista-magias-combate'); lista.innerHTML = "";
             PERSONAGEM.magias.forEach((m, idx) => {
                 let div = document.createElement('div'); div.className = "linha-magia";
@@ -300,63 +451,65 @@
             });
             document.getElementById('overlay-modal').classList.remove('escondido'); document.getElementById('modal-magias').classList.remove('escondido');
         };
-        window.fecharGrimorio = function() { document.getElementById('overlay-modal').classList.add('escondido'); document.getElementById('modal-magias').classList.add('escondido'); };
 
         window.usarMagia = async function(idx) {
-            fecharGrimorio(); let magia = PERSONAGEM.magias[idx]; if(magia.usos <= 0) return;
+            fecharModais(); let magia = PERSONAGEM.magias[idx]; if(magia.usos <= 0) return;
             magia.usos--; updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
             let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return;
-            let rD = parseInt(await pedirDado("PALAVRAS DE PODER", `Invocar ${magia.nome}! Rola 1d6 para o efeito cósmico.`));
-            logCombate(`✨ A magia crepita nas tuas mãos!`, "var(--magic)");
-            if(magia.nome.toLowerCase().includes("cura") || magia.nome.toLowerCase().includes("vida")) { PERSONAGEM.pv_atual = Math.min(PERSONAGEM.pv_maximo, PERSONAGEM.pv_atual + rD); logCombate(`O teu sangue ferve e curas ${rD} PV!`, "var(--neon)"); atualizarInterface(); turnoMonstros(); } 
-            else { aplicarDanoMonstro(alvo, rD + 2, `Magia [Dado ${rD}]: Devastaste o monstro com ${rD + 2} de dano!`); }
+            let rD = parseInt(await pedirDado("PALAVRAS DE PODER", `Invocar ${magia.nome}! Rola 1d6.`)); logCombate(`✨ A magia crepita!`, "var(--magic)");
+            if(magia.nome.toLowerCase().includes("cura") || magia.nome.toLowerCase().includes("vida")) { PERSONAGEM.pv_atual = Math.min(PERSONAGEM.pv_maximo, PERSONAGEM.pv_atual + rD); logCombate(`Curas ${rD} PV!`, "var(--neon)"); atualizarInterface(); turnoMonstros(); } 
+            else { aplicarDanoMonstro(alvo, rD + 2, `Magia [Dado ${rD}]: ${rD + 2} de dano!`); }
         };
 
         function aplicarDanoMonstro(alvo, dano, msg) {
             alvo.pv_atual -= dano; logCombate(msg, "var(--neon)");
-            if (alvo.pv_atual <= 0) { alvo.pv_atual = 0; alvo.vivo = false; logCombate(`💀 O ${alvo.nome} desaba sem vida!`, "#888"); }
+            if (alvo.pv_atual <= 0) { alvo.pv_atual = 0; alvo.vivo = false; logCombate(`💀 ${alvo.nome} desaba.`, "#888"); }
             renderizarInimigos();
-            if (COMBATE_ATUAL.monstros.every(m => !m.vivo)) { 
-                logCombate("VITÓRIA! O silêncio regressa à sala.", "var(--gold)"); 
-                verificarLoot(); 
-            } else turnoMonstros();
+            if (COMBATE_ATUAL.monstros.every(m => !m.vivo)) { logCombate("VITÓRIA! O silêncio regressa.", "var(--gold)"); verificarLoot(); } else turnoMonstros();
         }
 
         function turnoMonstros() {
             let d = 0; COMBATE_ATUAL.monstros.forEach(m => { if(m.vivo) d += m.dano; });
-            if (d > 0) { 
-                PERSONAGEM.pv_atual -= d; logCombate(`Sangras! O inimigo causa ${d} de dano!`, "var(--danger)"); atualizarInterface(); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); 
-                if (PERSONAGEM.pv_atual <= 0) { alert("Caíste em batalha. O teu nome será esquecido no tempo..."); window.location.href = "selecao.html"; } 
-            }
+            if (d > 0) { PERSONAGEM.pv_atual -= d; logCombate(`Inimigo causa ${d} de dano!`, "var(--danger)"); atualizarInterface(); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); if (PERSONAGEM.pv_atual <= 0) { alert("Caíste em batalha..."); window.location.href = "selecao.html"; } }
         }
 
         async function verificarLoot() {
             if(COMBATE_ATUAL.isBoss) {
-                logCombate("A besta monumental cai morta. Um brilho emana dos seus restos...", "var(--gold)");
-                let rL = parseInt(await pedirDado("O TESOURO DO CHEFE", "Rola 1d6 na Tabela de Tesouro Maior!"));
-                // Loot simples de Boss (adapte as regras reais do NoteQuest aqui se precisar)
-                let ouroGanhado = rL * 10;
-                PERSONAGEM.ouro += ouroGanhado;
-                logCombate(`💰 O baú do Boss revelou ${ouroGanhado} de Ouro!`, "var(--gold)");
-                
-                alert("CONCLUÍSTE A MASMORRA! És uma lenda viva.");
-                PERSONAGEM.masmorra = null; // Reseta a masmorra
-                updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => { window.location.href = "mundo.html"; });
-                return;
+                let rL = parseInt(await pedirDado("O TESOURO", "Rola 1d6 na Tabela Maior!"));
+                let ouroGanhado = rL * 10; PERSONAGEM.ouro += ouroGanhado; logCombate(`💰 O baú revelou ${ouroGanhado} de Ouro!`, "var(--gold)");
+                alert("CONCLUÍSTE A MASMORRA!"); PERSONAGEM.masmorra = null; updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => { window.location.href = "mundo.html"; }); return;
             }
-
             if(COMBATE_ATUAL.temEspolios) {
-                let rL = parseInt(await pedirDado("VASGULHAR CORPOS", "Procuras por algo de valor. Rola 1d6 na Tabela de Espólios."));
-                let recompensa = REGRAS.espolios[rL] || "Nada";
-                logCombate(`🎁 Encontraste: ${recompensa}`, "var(--gold)");
+                let rL = parseInt(await pedirDado("VASGULHAR CORPOS", "Rola 1d6 na Tabela de Espólios.")); let recompensa = REGRAS.espolios[rL] || "Nada";
+                logCombate(`🎁 ${recompensa}`, "var(--gold)");
                 if(rL === 3) PERSONAGEM.ouro += Math.floor(Math.random() * 6) + 1;
                 if(rL === 4) PERSONAGEM.ouro += (Math.floor(Math.random() * 6) + 1) + (Math.floor(Math.random() * 6) + 1);
-                if(rL >= 5) PERSONAGEM.ouro += 10; // Exemplo simplificado
-                atualizarInterface();
+                if(rL >= 5) PERSONAGEM.ouro += 10; atualizarInterface();
             }
             updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
             setTimeout(() => { COMBATE_ATUAL.ativo = false; document.getElementById('tela-combate').classList.add('escondido'); document.getElementById('tela-exploracao').classList.remove('escondido'); desenharMapaMasmorra(); }, 2500); 
         }
+
+        window.fugirCombate = function() { 
+            logCombate("Fugiste em pânico! Deixaste os monstros para trás.", "#aaa"); 
+            
+            // Grava os monstros vivos na sala ATUAL para nos esperarem!
+            let vivos = COMBATE_ATUAL.monstros.filter(m => m.vivo);
+            PERSONAGEM.masmorra.mapa[`${PERSONAGEM.masmorra.x},${PERSONAGEM.masmorra.y}`].monstros = vivos;
+            
+            // Move personagem para a sala ANTERIOR
+            PERSONAGEM.masmorra.x = PERSONAGEM.masmorra.lastX || 0;
+            PERSONAGEM.masmorra.y = PERSONAGEM.masmorra.lastY || 0;
+            
+            updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
+            
+            setTimeout(() => { 
+                COMBATE_ATUAL.ativo = false; 
+                document.getElementById('tela-combate').classList.add('escondido'); 
+                document.getElementById('tela-exploracao').classList.remove('escondido'); 
+                desenharMapaMasmorra(); 
+            }, 2000); 
+        };
     </script>
 </body>
 </html>
