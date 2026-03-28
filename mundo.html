@@ -121,48 +121,21 @@
 
         function iniciarListenerMapa() {
             onSnapshot(doc(db, "mundos", SERVIDOR_ATUAL), (snap) => {
-                if (snap.exists() && Object.keys(snap.data()).length > 0) {
-                    MAPA_GLOBAL = snap.data();
-                    if(!MAPA_GLOBAL["0,0"]) MAPA_GLOBAL["0,0"] = { terreno: "Cidade Humana", masmorra: null };
-                } else {
-                    MAPA_GLOBAL = { "0,0": { terreno: "Cidade Humana", masmorra: null } };
-                    setDoc(doc(db, "mundos", SERVIDOR_ATUAL), MAPA_GLOBAL);
-                }
+                if (snap.exists() && Object.keys(snap.data()).length > 0) { MAPA_GLOBAL = snap.data(); if(!MAPA_GLOBAL["0,0"]) MAPA_GLOBAL["0,0"] = { terreno: "Cidade Humana", masmorra: null }; } 
+                else { MAPA_GLOBAL = { "0,0": { terreno: "Cidade Humana", masmorra: null } }; setDoc(doc(db, "mundos", SERVIDOR_ATUAL), MAPA_GLOBAL); }
                 atualizarInterface(); desenharMapa();
             });
         }
 
         function atualizarInterface() {
-            document.getElementById('hud-nome').innerText = PERSONAGEM.nome;
-            document.getElementById('hud-pv').innerText = PERSONAGEM.pv_atual;
-            document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro;
-            document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes;
-            document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
-            document.getElementById('hud-servidor').innerText = SERVIDOR_ATUAL;
-
-            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r;
-            const hexAtual = MAPA_GLOBAL[`${mq},${mr}`];
-            
-            if(!hexAtual) {
-                PERSONAGEM.mundo.q = 0; PERSONAGEM.mundo.r = 0;
-                updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
-                return;
-            }
-
-            document.getElementById('hex-coord').innerText = `MAPA-MÚNDI [${mq}, ${mr}]`;
-            document.getElementById('hex-terreno').innerText = `${REGRAS.mundo.terrenos_info[hexAtual.terreno].emoji} ${hexAtual.terreno}`;
-            
-            const btnCid = document.getElementById('acoes-cidade');
-            if(hexAtual.terreno.includes("Cidade")) btnCid.classList.remove('escondido'); else btnCid.classList.add('escondido');
-            
+            document.getElementById('hud-nome').innerText = PERSONAGEM.nome; document.getElementById('hud-pv').innerText = PERSONAGEM.pv_atual; document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro; document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes; document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas; document.getElementById('hud-servidor').innerText = SERVIDOR_ATUAL;
+            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r; const hexAtual = MAPA_GLOBAL[`${mq},${mr}`];
+            if(!hexAtual) { PERSONAGEM.mundo.q = 0; PERSONAGEM.mundo.r = 0; updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); return; }
+            document.getElementById('hex-coord').innerText = `MAPA-MÚNDI [${mq}, ${mr}]`; document.getElementById('hex-terreno').innerText = `${REGRAS.mundo.terrenos_info[hexAtual.terreno].emoji} ${hexAtual.terreno}`;
+            const btnCid = document.getElementById('acoes-cidade'); if(hexAtual.terreno.includes("Cidade")) btnCid.classList.remove('escondido'); else btnCid.classList.add('escondido');
             const btnMas = document.getElementById('btn-entrar-masmorra');
-            if (hexAtual.masmorra) {
-                document.getElementById('hex-masmorra').innerText = `Masmorra Local: ${hexAtual.masmorra}`;
-                btnMas.classList.remove('escondido');
-            } else {
-                document.getElementById('hex-masmorra').innerText = "Masmorra: Nenhuma";
-                btnMas.classList.add('escondido');
-            }
+            if (hexAtual.masmorra) { document.getElementById('hex-masmorra').innerText = `Masmorra Local: ${hexAtual.masmorra}`; btnMas.classList.remove('escondido'); } 
+            else { document.getElementById('hex-masmorra').innerText = "Masmorra: Nenhuma"; btnMas.classList.add('escondido'); }
         }
 
         function log(msg) { const div = document.getElementById('log-mundo'); div.innerHTML += `<div style="border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
@@ -176,121 +149,75 @@
 
         function desenharMapa() {
             const cam = document.getElementById('camada-mundo'); cam.innerHTML = "";
-            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r;
-            const c = hexParaPixel(mq, mr); cam.style.transform = `translate(${-c.x}px, ${-c.y}px)`;
-            
+            const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r; const c = hexParaPixel(mq, mr); cam.style.transform = `translate(${-c.x}px, ${-c.y}px)`;
             for(let key in MAPA_GLOBAL) {
-                let [q, r] = key.split(',').map(Number); let div = document.createElement('div'); div.className = "hex-node";
-                let p = hexParaPixel(q, r); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = REGRAS.mundo.terrenos_info[MAPA_GLOBAL[key].terreno].emoji;
+                let [q, r] = key.split(',').map(Number); let div = document.createElement('div'); div.className = "hex-node"; let p = hexParaPixel(q, r); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = REGRAS.mundo.terrenos_info[MAPA_GLOBAL[key].terreno].emoji;
                 if(q === mq && r === mr) div.classList.add('hex-atual'); else div.onclick = () => viajar(q, r, MAPA_GLOBAL[key]); cam.appendChild(div);
             }
-            
             VIZINHOS_HEX.forEach(dir => {
                 let nq = mq + dir[0]; let nr = mr + dir[1]; let key = `${nq},${nr}`;
-                if(!MAPA_GLOBAL[key]) {
-                    let div = document.createElement('div'); div.className = "hex-node hex-unexplored";
-                    let p = hexParaPixel(nq, nr); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = "❓"; div.onclick = () => viajar(nq, nr, null); cam.appendChild(div);
-                }
+                if(!MAPA_GLOBAL[key]) { let div = document.createElement('div'); div.className = "hex-node hex-unexplored"; let p = hexParaPixel(nq, nr); div.style.left = `calc(50% + ${p.x}px - 25px)`; div.style.top = `calc(50% + ${p.y}px - 22px)`; div.innerText = "❓"; div.onclick = () => viajar(nq, nr, null); cam.appendChild(div); }
             });
         }
 
         window.viajar = async function(nq, nr, hexConhecido) {
-            let custo = hexConhecido ? REGRAS.mundo.terrenos_info[hexConhecido.terreno].custo : 1;
-            if(PERSONAGEM.provisoes < custo) return alert(`A viagem consome recursos. Faltam-te ${custo} Provisões!`);
-            PERSONAGEM.provisoes -= custo; let key = `${nq},${nr}`;
-
+            let custo = hexConhecido ? REGRAS.mundo.terrenos_info[hexConhecido.terreno].custo : 1; if(PERSONAGEM.provisoes < custo) return alert(`A viagem consome recursos. Faltam-te ${custo} Provisões!`); PERSONAGEM.provisoes -= custo; let key = `${nq},${nr}`;
             if (!MAPA_GLOBAL[key]) {
                 log(`Avanças pelos ermos desconhecidos... (-${custo} 🍖)`);
-                let rT = await pedirDado("A NATUREZA DO REINO", "Lanças um olhar sobre o horizonte. Role 1d6 para determinar o terreno."); 
-                let tNome = REGRAS.mundo.geracao_terreno[rT] || "Planície";
+                let rT = await pedirDado("A NATUREZA DO REINO", "Lanças um olhar sobre o horizonte. Role 1d6 para determinar o terreno."); let tNome = REGRAS.mundo.geracao_terreno[rT] || "Planície";
                 MAPA_GLOBAL[key] = { terreno: tNome, masmorra: null }; log(`🗺️ Adentras num(a): ${tNome}`);
-                
                 let rB = await pedirDado("VIGILÂNCIA", "Procuras sinais de ruínas antigas. Role 1d6 (5 ou 6 encontra algo).");
-                if (rB >= 5) { 
-                    let rM = await pedirDado("A ESTRUTURA", "Uma sombra ergue-se. Role 1d6 para revelar o nome do local."); 
-                    MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[tNome][rM - 1]; 
-                    log(`⚠️ DESCOBERTA: ${MAPA_GLOBAL[key].masmorra}!`); 
-                }
+                if (rB >= 5) { let rM = await pedirDado("A ESTRUTURA", "Uma sombra ergue-se. Role 1d6 para revelar o nome do local."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[tNome][rM - 1]; log(`⚠️ DESCOBERTA: ${MAPA_GLOBAL[key].masmorra}!`); }
                 await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] });
-            } else {
-                log(`Viajas por território mapeado... (-${custo} 🍖)`);
-            }
+            } else { log(`Viajas por território mapeado... (-${custo} 🍖)`); }
             
-            PERSONAGEM.mundo.q = nq; PERSONAGEM.mundo.r = nr; 
-            await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
-            atualizarInterface(); desenharMapa();
+            PERSONAGEM.mundo.q = nq; PERSONAGEM.mundo.r = nr; await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); atualizarInterface(); desenharMapa();
 
             let hexAtual = MAPA_GLOBAL[key];
             if (!hexAtual.terreno.includes("Cidade")) {
-                let r1 = await pedirDado("O PERIGO À ESPREITA (1)", "Os ermos são traiçoeiros. Role o primeiro 1d6."); 
-                let r2 = await pedirDado("O PERIGO À ESPREITA (2)", "Role o segundo 1d6 para o Evento de Viagem.");
+                let r1 = await pedirDado("O PERIGO À ESPREITA (1)", "Os ermos são traiçoeiros. Role o primeiro 1d6."); let r2 = await pedirDado("O PERIGO À ESPREITA (2)", "Role o segundo 1d6 para o Evento de Viagem.");
                 let soma = parseInt(r1) + parseInt(r2);
                 if (soma <= 6 && REGRAS.eventos[hexAtual.terreno]) {
-                    let ev = REGRAS.eventos[hexAtual.terreno][soma] || REGRAS.eventos[hexAtual.terreno][6];
-                    log(`⚠️ EVENTO: ${ev}`);
+                    let ev = REGRAS.eventos[hexAtual.terreno][soma] || REGRAS.eventos[hexAtual.terreno][6]; log(`⚠️ EVENTO: ${ev}`);
                     if (ev.includes("PV")) { alert(`Foste apanhado desprevenido!\n${ev}`); iniciarCombate(ev); } 
-                    else {
-                        if(ev.includes("perde 1 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-1);
-                        if(ev.includes("perde 2 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-2);
-                        if(ev.includes("perde 2 PV")) PERSONAGEM.pv_atual = Math.max(0, PERSONAGEM.pv_atual-2);
-                        await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
-                        atualizarInterface();
-                    }
+                    else { if(ev.includes("perde 1 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-1); if(ev.includes("perde 2 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-2); if(ev.includes("perde 2 PV")) PERSONAGEM.pv_atual = Math.max(0, PERSONAGEM.pv_atual-2); await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); atualizarInterface(); }
                 }
             }
         };
 
+        // ==========================================
+        // NOVA GERAÇÃO DE MASMORRA (PORTAS ?)
+        // ==========================================
         window.entrarMasmorra = async function() {
-            const hexAtual = MAPA_GLOBAL[`${PERSONAGEM.mundo.q},${PERSONAGEM.mundo.r}`];
-            if(!hexAtual || !hexAtual.masmorra) return;
-            
+            const hexAtual = MAPA_GLOBAL[`${PERSONAGEM.mundo.q},${PERSONAGEM.mundo.r}`]; if(!hexAtual || !hexAtual.masmorra) return;
             if(PERSONAGEM.tochas <= 0) return alert("Precisas de pelo menos 1 Tocha (🔥) para sobreviver na escuridão!");
             PERSONAGEM.tochas--;
             
             let rS = Math.floor(Math.random() * 6) + 1;
             let seg = REGRAS.segmentos["Corredor"].find(s => s.min <= rS && s.max >= rS);
             
+            // Gerar posições aleatórias para as portas iniciais
+            let dirs = [[0,-1], [0,1], [1,0], [-1,0]].sort(() => Math.random() - 0.5);
+            let portasIniciais = [];
+            for(let i=0; i<seg.portas; i++) {
+                portasIniciais.push({ nx: dirs[i][0], ny: dirs[i][1], status: "?" });
+            }
+            
             PERSONAGEM.masmorra = {
-                nome: hexAtual.masmorra, nivel: 1, x: 0, y: 0,
-                mapa: { "0,0": { tipo: seg.tipo, icone: "🔲", portasRestantes: seg.portas, explorada: true } }
+                nome: hexAtual.masmorra, nivel: 1, x: 0, y: 0, lastX: 0, lastY: 0,
+                mapa: { "0,0": { tipo: seg.tipo, icone: "🔲", portas: portasIniciais, monstros: [], explorada: true } }
             };
             
             await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
             window.location.href = "masmorra.html"; 
         };
 
-        window.tavernaBoatos = async function() { if(PERSONAGEM.ouro < 1) return; PERSONAGEM.ouro--; let rol = await pedirDado("RUMORES NA TAVERNA", "Pagas 1 Moeda de Ouro ao taberneiro. Rola 1d6 (4+ para sucesso)."); if (rol >= 4) { let dir = VIZINHOS_HEX[Math.floor(Math.random() * 6)]; let key = `${PERSONAGEM.mundo.q + dir[0]},${PERSONAGEM.mundo.r + dir[1]}`; if(!MAPA_GLOBAL[key]) MAPA_GLOBAL[key] = { terreno: "Planície", masmorra: null }; if (!MAPA_GLOBAL[key].masmorra) { let rt = await pedirDado("A LENDA REVELADA", "O taberneiro desenha um X no teu mapa. Rola 1d6 para determinar o local."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[MAPA_GLOBAL[key].terreno][rt-1]; log(`🍺 Um novo local foi revelado no teu mapa!`); await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] }); } } else log("🍺 O bêbado apenas balbuciou disparates. Dinheiro perdido."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); };
+        window.tavernaBoatos = async function() { if(PERSONAGEM.ouro < 1) return; PERSONAGEM.ouro--; let rol = await pedirDado("RUMORES NA TAVERNA", "Pagas 1 Moeda de Ouro. Rola 1d6 (4+)."); if (rol >= 4) { let dir = VIZINHOS_HEX[Math.floor(Math.random() * 6)]; let key = `${PERSONAGEM.mundo.q + dir[0]},${PERSONAGEM.mundo.r + dir[1]}`; if(!MAPA_GLOBAL[key]) MAPA_GLOBAL[key] = { terreno: "Planície", masmorra: null }; if (!MAPA_GLOBAL[key].masmorra) { let rt = await pedirDado("A LENDA REVELADA", "Rola 1d6 para determinar o local."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[MAPA_GLOBAL[key].terreno][rt-1]; log(`🍺 Um novo local foi revelado no teu mapa!`); await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] }); } } else log("🍺 O bêbado apenas balbuciou disparates."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); };
         window.descansarEstalagem = function() { if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM.pv_atual = PERSONAGEM.pv_maximo; log("🛌 Uma noite quente e segura. Feridas curadas."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
-        window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`As tuas costas doem. Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Guardaste 1 ${i} na mochila.`); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
+        window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Guardaste 1 ${i} na mochila.`); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
 
-function parseMonstroString(str) {
-            let qtd = 1; let nome = str;
-            let matchQtd = str.match(/^(\d+)\s+(.*)/);
-            if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; }
-            let pv = 1, dano = 1, habs = [];
-            if (nome.includes('(')) {
-                let partes = nome.split('(');
-                nome = partes[0].trim();
-                let stats = partes[1].replace(')', '').split(';');
-                stats.forEach(s => {
-                    s = s.trim().toLowerCase();
-                    if(s.includes('pv')) {
-                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
-                        if(!isNaN(val)) pv = val;
-                    } else if(s.includes('dano')) {
-                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
-                        if(!isNaN(val)) dano = val;
-                    } else {
-                        habs.push(s);
-                    }
-                });
-            }
-            let arr = [];
-            for(let i=0; i<qtd; i++) {
-                arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true });
-            }
-            return arr;
-        }        
+        function parseMonstroString(str) { let qtd = 1; let nome = str; let matchQtd = str.match(/^(\d+)\s+(.*)/); if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; } let pv = 1, dano = 1, habs = []; if (nome.includes('(')) { let partes = nome.split('('); nome = partes[0].trim(); let stats = partes[1].replace(')', '').split(';'); stats.forEach(s => { s = s.trim().toLowerCase(); if(s.includes('pv')) { let val = parseInt(s.replace(/\D/g, '')); if(!isNaN(val)) pv = val; } else if(s.includes('dano')) { let val = parseInt(s.replace(/\D/g, '')); if(!isNaN(val)) dano = val; } else { habs.push(s); } }); } let arr = []; for(let i=0; i<qtd; i++) arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true }); return arr; }
+        
         window.iniciarCombate = function(str) { COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0 }; document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido'); document.getElementById('log-combate').innerHTML = ""; logCombate(`As lâminas cruzam-se! Enfrentas: ${str}`, "var(--danger)"); renderizarInimigos(); };
         function renderizarInimigos() { const div = document.getElementById('combate-inimigos'); div.innerHTML = ""; COMBATE_ATUAL.monstros.forEach((m, index) => { let card = document.createElement('div'); card.className = `cartao-monstro ${index === COMBATE_ATUAL.alvoIndex ? 'alvo' : ''} ${!m.vivo ? 'morto' : ''}`; card.innerHTML = `<strong style="color:var(--gold)">${m.nome}</strong><br>❤️ ${m.pv_atual}/${m.pv_max}<br><small>🗡️ ${m.dano}</small>`; if(m.vivo) card.onclick = () => { COMBATE_ATUAL.alvoIndex = index; renderizarInimigos(); }; div.appendChild(card); }); }
         function logCombate(msg, cor="#eee") { const div = document.getElementById('log-combate'); div.innerHTML += `<div style="color: ${cor}; border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
