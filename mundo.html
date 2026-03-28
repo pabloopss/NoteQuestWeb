@@ -263,8 +263,34 @@
         window.descansarEstalagem = function() { if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM.pv_atual = PERSONAGEM.pv_maximo; log("🛌 Uma noite quente e segura. Feridas curadas."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
         window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`As tuas costas doem. Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Guardaste 1 ${i} na mochila.`); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
 
-        function parseMonstroString(str) { let qtd = 1; let nome = str; let matchQtd = str.match(/^(\d+)\s+(.*)/); if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; } let pv = 1, dano = 1, habs = []; if (nome.includes('(')) { let partes = nome.split('('); nome = partes[0].trim(); let stats = partes[1].replace(')', '').split(';'); stats.forEach(s => { s = s.trim().toLowerCase(); if(s.includes('pv')) pv = parseInt(s); else if(s.includes('dano')) dano = parseInt(s.replace('dano','')); else habs.push(s); }); } let arr = []; for(let i=0; i<qtd; i++) arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true }); return arr; }
-        
+function parseMonstroString(str) {
+            let qtd = 1; let nome = str;
+            let matchQtd = str.match(/^(\d+)\s+(.*)/);
+            if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; }
+            let pv = 1, dano = 1, habs = [];
+            if (nome.includes('(')) {
+                let partes = nome.split('(');
+                nome = partes[0].trim();
+                let stats = partes[1].replace(')', '').split(';');
+                stats.forEach(s => {
+                    s = s.trim().toLowerCase();
+                    if(s.includes('pv')) {
+                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
+                        if(!isNaN(val)) pv = val;
+                    } else if(s.includes('dano')) {
+                        let val = parseInt(s.replace(/\D/g, '')); // Extrai apenas os números
+                        if(!isNaN(val)) dano = val;
+                    } else {
+                        habs.push(s);
+                    }
+                });
+            }
+            let arr = [];
+            for(let i=0; i<qtd; i++) {
+                arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true });
+            }
+            return arr;
+        }        
         window.iniciarCombate = function(str) { COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0 }; document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido'); document.getElementById('log-combate').innerHTML = ""; logCombate(`As lâminas cruzam-se! Enfrentas: ${str}`, "var(--danger)"); renderizarInimigos(); };
         function renderizarInimigos() { const div = document.getElementById('combate-inimigos'); div.innerHTML = ""; COMBATE_ATUAL.monstros.forEach((m, index) => { let card = document.createElement('div'); card.className = `cartao-monstro ${index === COMBATE_ATUAL.alvoIndex ? 'alvo' : ''} ${!m.vivo ? 'morto' : ''}`; card.innerHTML = `<strong style="color:var(--gold)">${m.nome}</strong><br>❤️ ${m.pv_atual}/${m.pv_max}<br><small>🗡️ ${m.dano}</small>`; if(m.vivo) card.onclick = () => { COMBATE_ATUAL.alvoIndex = index; renderizarInimigos(); }; div.appendChild(card); }); }
         function logCombate(msg, cor="#eee") { const div = document.getElementById('log-combate'); div.innerHTML += `<div style="color: ${cor}; border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
