@@ -26,10 +26,11 @@
         <h2 style="color: var(--magic); margin-top: 0;">🔮 ESCOLHA O SEU DESTINO</h2>
         <p style="color: #aaa; margin-bottom: 25px;">Para qual reino a sua alma deseja viajar?</p>
         
-        <button onclick="selecionarMundo('Mundo Alpha')">🌍 Mundo Alpha (Oficial)</button>
-        <button onclick="selecionarMundo('Mundo Omega')" class="btn-sec">🌋 Mundo Ômega (Caos)</button>
+        <div id="botoes-mundos" style="margin-bottom: 20px;">
+            <p style="color: #888;">A procurar os reinos criados pelo Mestre...</p>
+        </div>
         
-        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+        <div style="border-top: 1px solid #333; padding-top: 15px;">
             <button id="btn-painel-gm" class="escondido" style="background: #d0f; color: #fff;" onclick="window.location.href='mestre.html'">👁️ PAINEL GM</button>
             <button class="btn-perigo" onclick="deslogar()">🚪 SAIR DA CONTA</button>
         </div>
@@ -60,12 +61,39 @@
             if (user) {
                 UID = user.uid;
                 if (user.email === EMAIL_DO_MESTRE) document.getElementById('btn-painel-gm').classList.remove('escondido');
+                carregarMundosDisponiveis(); // Chama a função para ler os mundos reais!
             } else {
                 window.location.href = "index.html";
             }
         });
 
         window.deslogar = () => { signOut(auth); };
+
+        // BUSCA OS MUNDOS NA BASE DE DADOS
+        async function carregarMundosDisponiveis() {
+            const divMundos = document.getElementById('botoes-mundos');
+            divMundos.innerHTML = ""; // Limpa o "Procurando..."
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "mundos"));
+                
+                if (querySnapshot.empty) {
+                    divMundos.innerHTML = "<p style='color: var(--danger);'>O Mestre ainda não criou nenhum mundo!</p>";
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    let nomeMundo = docSnap.id;
+                    let btn = document.createElement('button');
+                    btn.className = "btn-sec";
+                    btn.innerText = `🌍 ${nomeMundo}`;
+                    btn.onclick = () => selecionarMundo(nomeMundo);
+                    divMundos.appendChild(btn);
+                });
+            } catch (error) {
+                divMundos.innerHTML = `<p style="color: red;">Erro ao carregar mundos: ${error.message}</p>`;
+            }
+        }
 
         window.selecionarMundo = async function(mundo) {
             SERVIDOR_ESCOLHIDO = mundo;
@@ -85,8 +113,7 @@
 
         async function carregarHerois() {
             const lista = document.getElementById('lista-slots');
-            lista.innerHTML = "";
-            QTD_HEROIS = 0;
+            lista.innerHTML = ""; QTD_HEROIS = 0;
 
             const querySnapshot = await getDocs(collection(db, "personagens"));
             
@@ -109,9 +136,7 @@
                 }
             });
 
-            if (QTD_HEROIS === 0) {
-                lista.innerHTML = "<p style='color: #888; font-style: italic; margin-bottom: 20px;'>Nenhum herói encontrado neste reino.</p>";
-            }
+            if (QTD_HEROIS === 0) lista.innerHTML = "<p style='color: #888; font-style: italic; margin-bottom: 20px;'>Nenhum herói encontrado neste reino.</p>";
 
             if (QTD_HEROIS >= MAX_SLOTS) {
                 document.getElementById('btn-novo-heroi').disabled = true;
