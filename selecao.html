@@ -40,7 +40,7 @@
         <p style="color: #aaa; margin-bottom: 20px;">Servidor: <strong id="nome-servidor" style="color: var(--magic);"></strong></p>
         
         <div id="lista-slots">
-            <p style="color: #888;">Procurando pergaminhos de aventureiros...</p>
+            <p style="color: #888;">A procurar pergaminhos de aventureiros...</p>
         </div>
 
         <button id="btn-novo-heroi" class="btn-sec" onclick="criarNovoHeroi()">➕ FORJAR NOVO HERÓI</button>
@@ -88,12 +88,10 @@
             lista.innerHTML = "";
             QTD_HEROIS = 0;
 
-            // Busca todos os personagens na coleção global
             const querySnapshot = await getDocs(collection(db, "personagens"));
             
             querySnapshot.forEach((docSnap) => {
                 let p = docSnap.data();
-                // Filtra para mostrar apenas os heróis DESTE utilizador e NESTE servidor
                 if (p.userId === UID && p.servidor === SERVIDOR_ESCOLHIDO) {
                     QTD_HEROIS++;
                     let slot = document.createElement('div');
@@ -101,25 +99,23 @@
                     slot.innerHTML = `
                         <div class="char-info">
                             <strong>${p.nome}</strong>
-                            <span>${p.raca} / ${p.classe} • Nv. 1</span>
+                            <span>${p.raca} / ${p.classe}</span>
                             <span>PV: ${p.pv_atual}/${p.pv_maximo} • 💰 ${p.ouro}g</span>
                         </div>
                         <div style="font-size: 24px;">▶</div>
                     `;
-                    // Guarda o ID do personagem para carregar no mundo.html
                     slot.onclick = () => jogarComHeroi(docSnap.id);
                     lista.appendChild(slot);
                 }
             });
 
             if (QTD_HEROIS === 0) {
-                lista.innerHTML = "<p style='color: #888; font-style: italic; margin-bottom: 20px;'>Não possui heróis neste mundo.</p>";
+                lista.innerHTML = "<p style='color: #888; font-style: italic; margin-bottom: 20px;'>Nenhum herói encontrado neste reino.</p>";
             }
 
-            // Bloqueia a criação se atingir o limite
             if (QTD_HEROIS >= MAX_SLOTS) {
                 document.getElementById('btn-novo-heroi').disabled = true;
-                document.getElementById('btn-novo-heroi').innerText = "🚫 LIMITE DE SLOTS ATINGIDO";
+                document.getElementById('btn-novo-heroi').innerText = "🚫 LIMITE DE HERÓIS ATINGIDO";
             } else {
                 document.getElementById('btn-novo-heroi').disabled = false;
                 document.getElementById('btn-novo-heroi').innerText = `➕ FORJAR NOVO HERÓI (${QTD_HEROIS}/${MAX_SLOTS})`;
