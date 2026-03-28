@@ -35,12 +35,12 @@
 
         <div class="ficha-box">
             <h3>⚔️ Equipamento</h3>
-            <div id="ficha-armaduras">A carregar...</div>
+            <div id="ficha-armaduras">A carregar os pergaminhos...</div>
         </div>
 
         <div class="ficha-box">
             <h3 style="color: var(--magic);">✨ Grimório de Magias</h3>
-            <div id="ficha-magias">A carregar...</div>
+            <div id="ficha-magias">A decifrar runas...</div>
         </div>
 
         <div class="ficha-box">
@@ -50,25 +50,29 @@
                 <span style="color: #f88;">🍖 <span id="ficha-prov">0</span></span>
                 <span style="color: #fa0;">🔥 <span id="ficha-tochas">0</span></span>
             </div>
-            <div id="ficha-mochila">A carregar...</div>
+            <div id="ficha-mochila">A remexer no fundo do saco...</div>
         </div>
 
-        <button class="btn-sec" onclick="window.history.back()">🔙 VOLTAR AO JOGO</button>
+        <button class="btn-sec" onclick="voltarAoJogo()">🔙 VOLTAR À AVENTURA</button>
     </div>
 
     <script type="module">
         import { auth, db, doc, getDoc, updateDoc, onAuthStateChanged } from "./firebase.js";
         
-        let UID = null; let PERSONAGEM = null;
+        const CHAR_ID = sessionStorage.getItem('charId');
+        let PERSONAGEM = null;
+
+        if (!CHAR_ID) window.location.href = "selecao.html";
 
         onAuthStateChanged(auth, async (user) => {
-            if (user) { UID = user.uid; carregarFicha(); } 
+            if (user) { carregarFicha(); } 
             else window.location.href = "index.html";
         });
 
         async function carregarFicha() {
-            const snap = await getDoc(doc(db, "personagens", UID));
+            const snap = await getDoc(doc(db, "personagens", CHAR_ID));
             if (snap.exists()) { PERSONAGEM = snap.data(); renderizar(); }
+            else window.location.href = "selecao.html";
         }
 
         function renderizar() {
@@ -93,12 +97,12 @@
             document.getElementById('ficha-armaduras').innerHTML = armHtml;
 
             let magHtml = "";
-            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) magHtml = "<span style='color:#888;'>Nenhuma magia conhecida.</span>";
+            if(!PERSONAGEM.magias || PERSONAGEM.magias.length === 0) magHtml = "<span style='color:#888;'>Não possuis conhecimento arcano.</span>";
             else PERSONAGEM.magias.forEach((m, i) => { magHtml += `<div class="linha-item"><div>✨ <strong style="color:var(--neon)">${m.nome}</strong> (${m.usos} usos)</div><button class="btn-acao-pequeno btn-perigo" onclick="descartarMagia(${i})">Esquecer</button></div>`; });
             document.getElementById('ficha-magias').innerHTML = magHtml;
 
             let mocHtml = "";
-            if(!PERSONAGEM.mochila || PERSONAGEM.mochila.length === 0) mocHtml = "<span style='color:#888;'>Mochila vazia.</span>";
+            if(!PERSONAGEM.mochila || PERSONAGEM.mochila.length === 0) mocHtml = "<span style='color:#888;'>Não tens nada de útil contigo.</span>";
             else PERSONAGEM.mochila.forEach((item, i) => {
                 mocHtml += `<div class="linha-item">
                     <span>🎒 ${item.nome} ${item.qtd ? `(x${item.qtd})` : ''}</span>
@@ -115,14 +119,14 @@
             if(PERSONAGEM.arma_nome === "Desarmado") return;
             PERSONAGEM.mochila.push({ nome: PERSONAGEM.arma_nome, dano: PERSONAGEM.arma_dano, equipavel: true, tipo: "arma" });
             PERSONAGEM.arma_nome = "Desarmado"; PERSONAGEM.arma_dano = "1";
-            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+            updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => renderizar());
         };
 
         window.desequiparArmadura = function(slot) {
             let arm = PERSONAGEM.armaduras[slot]; if(arm.nome === "Nenhum") return;
             PERSONAGEM.mochila.push({ nome: arm.nome, pv: arm.pv, pvmax: arm.pvmax, equipavel: true, tipo: slot });
             PERSONAGEM.armaduras[slot] = { nome: "Nenhum", pv: 0, pvmax: 0 };
-            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+            updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => renderizar());
         };
 
         window.equiparItem = function(index) {
@@ -135,11 +139,16 @@
                 PERSONAGEM.armaduras[item.tipo] = { nome: item.nome, pv: item.pv, pvmax: item.pvmax };
             }
             PERSONAGEM.mochila.splice(index, 1);
-            updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar());
+            updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => renderizar());
         };
 
-        window.descartarItem = function(i) { if(confirm("Deitar fora?")) { PERSONAGEM.mochila.splice(i, 1); updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar()); } };
-        window.descartarMagia = function(i) { if(confirm("Esquecer magia?")) { PERSONAGEM.magias.splice(i, 1); updateDoc(doc(db, "personagens", UID), PERSONAGEM).then(() => renderizar()); } };
+        window.descartarItem = function(i) { if(confirm("Tens a certeza que queres abandonar este item?")) { PERSONAGEM.mochila.splice(i, 1); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => renderizar()); } };
+        window.descartarMagia = function(i) { if(confirm("Queres apagar este conhecimento da tua mente para sempre?")) { PERSONAGEM.magias.splice(i, 1); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM).then(() => renderizar()); } };
+        
+        window.voltarAoJogo = function() {
+            if (PERSONAGEM && PERSONAGEM.masmorra) window.location.href = "masmorra.html";
+            else window.location.href = "mundo.html";
+        }
     </script>
 </body>
 </html>
