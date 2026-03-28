@@ -44,12 +44,19 @@
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                statusMsg.innerText = "Autenticado! A verificar no servidor...";
+                statusMsg.innerText = "Autenticado! A abrir Salão de Seleção...";
                 
                 if (user.email === EMAIL_DO_MESTRE && !sessionStorage.getItem('modo_jogador')) {
                     window.location.href = "mestre.html";
                     return;
                 }
+                
+                // Vai direto para a tela de Seleção de Mundos e Heróis
+                window.location.href = "selecao.html"; 
+            } else {
+                statusMsg.innerText = "Pronto para jogar.";
+            }
+        });
 
                 try {
                     // MUDANÇA CRUCIAL: Agora ele IGNORA a cache e vai sempre ao servidor real
