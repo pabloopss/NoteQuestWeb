@@ -10,6 +10,7 @@
         .container { background: var(--panel); border: 2px solid var(--gold); padding: 30px; width: 100%; max-width: 400px; border-radius: 8px; text-align: center; }
         input, select { background: #000; color: #fff; border: 1px solid #555; padding: 12px; width: 100%; margin-bottom: 15px; font-family: inherit; font-size: 16px; }
         button { background: var(--gold); color: #000; font-weight: bold; padding: 14px; border: none; cursor: pointer; width: 100%; margin-bottom: 10px; border-radius: 6px; font-size: 16px; }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; }
         button.btn-perigo { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
     </style>
     <script src="regras.js"></script>
@@ -36,13 +37,22 @@
         let UID = null;
         let SERVIDOR = sessionStorage.getItem('servidorAtual');
 
-        if(!SERVIDOR) window.location.href = "selecao.html";
+        if(!SERVIDOR) {
+            alert("Nenhum mundo selecionado! Retornando ao Salão...");
+            window.location.href = "selecao.html";
+        }
+        
         document.getElementById('info-mundo').innerText = `O teu destino: ${SERVIDOR}`;
 
         const selectRaca = document.getElementById('raca');
         const selectClasse = document.getElementById('classe');
-        for (let r in window.REGRAS.racas) selectRaca.innerHTML += `<option value="${r}">${r} (+${window.REGRAS.racas[r].pv} PV)</option>`;
-        for (let c in window.REGRAS.classes) selectClasse.innerHTML += `<option value="${c}">${c} (Arma: ${window.REGRAS.classes[c].arma})</option>`;
+        
+        try {
+            for (let r in window.REGRAS.racas) selectRaca.innerHTML += `<option value="${r}">${r} (+${window.REGRAS.racas[r].pv} PV)</option>`;
+            for (let c in window.REGRAS.classes) selectClasse.innerHTML += `<option value="${c}">${c} (Arma: ${window.REGRAS.classes[c].arma})</option>`;
+        } catch(e) {
+            alert("Erro ao carregar regras do livro! Certifique-se que regras.js existe.");
+        }
 
         onAuthStateChanged(auth, (user) => {
             if (user) UID = user.uid;
@@ -50,35 +60,47 @@
         });
 
         document.getElementById('btn-criar').onclick = async () => {
-            if(!UID) return;
-            const raca = document.getElementById('raca').value;
-            const classe = document.getElementById('classe').value;
-            const pvTotal = window.REGRAS.racas[raca].pv + window.REGRAS.classes[classe].pv;
+            if(!UID) return alert("Erro de Autenticação. Faça login novamente.");
             
-            let magiasSorteadas = []; let pool = [...window.REGRAS.magias_basicas];
-            for (let i = 0; i < (window.REGRAS.racas[raca].magias + window.REGRAS.classes[classe].magias); i++) {
-                if (pool.length === 0) break;
-                const idx = Math.floor(Math.random() * pool.length);
-                magiasSorteadas.push(pool[idx]); pool.splice(idx, 1);
+            // Bloqueia o botão para não clicar duas vezes sem querer
+            const btn = document.getElementById('btn-criar');
+            btn.disabled = true;
+            btn.innerText = "A FORJAR...";
+
+            try {
+                const raca = document.getElementById('raca').value;
+                const classe = document.getElementById('classe').value;
+                const pvTotal = window.REGRAS.racas[raca].pv + window.REGRAS.classes[classe].pv;
+                
+                let magiasSorteadas = []; let pool = [...window.REGRAS.magias_basicas];
+                for (let i = 0; i < (window.REGRAS.racas[raca].magias + window.REGRAS.classes[classe].magias); i++) {
+                    if (pool.length === 0) break;
+                    const idx = Math.floor(Math.random() * pool.length);
+                    magiasSorteadas.push(pool[idx]); pool.splice(idx, 1);
+                }
+
+                const novaFichaRef = doc(collection(db, "personagens"));
+
+                const novoPersonagem = {
+                    userId: UID,
+                    servidor: SERVIDOR,
+                    nome: document.getElementById('nome').value || "Aventureiro Desconhecido",
+                    raca: raca, classe: classe, pv_maximo: pvTotal, pv_atual: pvTotal,
+                    ouro: 5, tochas: 10, provisoes: 20,
+                    arma_nome: window.REGRAS.classes[classe].arma, arma_dano: window.REGRAS.classes[classe].dano,
+                    armaduras: { elmo: {nome:"Nenhum",pv:0,pvmax:0}, peitoral: {nome:"Nenhum",pv:0,pvmax:0}, ombreiras: {nome:"Nenhum",pv:0,pvmax:0}, braceletes: {nome:"Nenhum",pv:0,pvmax:0}, botas: {nome:"Nenhum",pv:0,pvmax:0} },
+                    magias: magiasSorteadas, mochila: [], mundo: { q: 0, r: 0 }, masmorra: null 
+                };
+                
+                await setDoc(novaFichaRef, novoPersonagem);
+                
+                sessionStorage.setItem('charId', novaFichaRef.id);
+                window.location.href = "mundo.html"; 
+            } catch(erro) {
+                alert("Falha mágica na Forja: " + erro.message);
+                btn.disabled = false;
+                btn.innerText = "FORJAR HERÓI";
             }
-
-            const novaFichaRef = doc(collection(db, "personagens"));
-
-            const novoPersonagem = {
-                userId: UID,
-                servidor: SERVIDOR,
-                nome: document.getElementById('nome').value || "Aventureiro Desconhecido",
-                raca: raca, classe: classe, pv_maximo: pvTotal, pv_atual: pvTotal,
-                ouro: 5, tochas: 10, provisoes: 20,
-                arma_nome: window.REGRAS.classes[classe].arma, arma_dano: window.REGRAS.classes[classe].dano,
-                armaduras: { elmo: {nome:"Nenhum",pv:0,pvmax:0}, peitoral: {nome:"Nenhum",pv:0,pvmax:0}, ombreiras: {nome:"Nenhum",pv:0,pvmax:0}, braceletes: {nome:"Nenhum",pv:0,pvmax:0}, botas: {nome:"Nenhum",pv:0,pvmax:0} },
-                magias: magiasSorteadas, mochila: [], mundo: { q: 0, r: 0 }, masmorra: null 
-            };
-            
-            await setDoc(novaFichaRef, novoPersonagem);
-            
-            sessionStorage.setItem('charId', novaFichaRef.id);
-            window.location.href = "mundo.html"; 
         };
     </script>
 </body>
