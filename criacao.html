@@ -37,7 +37,7 @@
         let SERVIDOR = sessionStorage.getItem('servidorAtual');
 
         if(!SERVIDOR) window.location.href = "selecao.html";
-        document.getElementById('info-mundo').innerText = `A forjar herói para: ${SERVIDOR}`;
+        document.getElementById('info-mundo').innerText = `O teu destino: ${SERVIDOR}`;
 
         const selectRaca = document.getElementById('raca');
         const selectClasse = document.getElementById('classe');
@@ -62,12 +62,11 @@
                 magiasSorteadas.push(pool[idx]); pool.splice(idx, 1);
             }
 
-            // CRIA UMA REFERÊNCIA NOVA COM ID ALEATÓRIO NO FIREBASE!
             const novaFichaRef = doc(collection(db, "personagens"));
 
             const novoPersonagem = {
-                userId: UID,                  // <- OBRIGATÓRIO PARA SABERMOS DE QUEM É
-                servidor: SERVIDOR,           // <- OBRIGATÓRIO PARA FILTRAR
+                userId: UID,
+                servidor: SERVIDOR,
                 nome: document.getElementById('nome').value || "Aventureiro Desconhecido",
                 raca: raca, classe: classe, pv_maximo: pvTotal, pv_atual: pvTotal,
                 ouro: 5, tochas: 10, provisoes: 20,
@@ -78,7 +77,6 @@
             
             await setDoc(novaFichaRef, novoPersonagem);
             
-            // Grava o ID criado na sessão e manda pro jogo
             sessionStorage.setItem('charId', novaFichaRef.id);
             window.location.href = "mundo.html"; 
         };
