@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NoteQuest Web - Login</title>
+    <title>NoteQuest Web - Entrar</title>
     <style>
         :root { --bg: #050505; --panel: #151515; --text: #eee; --neon: #0fa; --gold: #ffd700; }
         body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -12,19 +12,18 @@
         button { background: var(--neon); color: #000; font-weight: bold; font-family: inherit; padding: 14px; border: none; cursor: pointer; width: 100%; margin-bottom: 10px; border-radius: 6px; font-size: 16px; }
         button.btn-sec { background: transparent; color: var(--neon); border: 2px solid var(--neon); }
         button.btn-google { background: #fff; color: #000; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .escondido { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="tela-login" class="container">
+    <div class="container">
         <h1 style="color: var(--neon); margin-top: 0; text-shadow: 0 0 10px var(--neon);">NOTEQUEST WEB</h1>
-        <p id="status-msg" style="color: #ffaa00; font-size: 14px;">A conectar ao servidor...</p>
+        <p id="status-msg" style="color: #ffaa00; font-size: 14px;">Aguardando aventureiro...</p>
         
         <input type="email" id="email" placeholder="E-mail">
         <input type="password" id="senha" placeholder="Palavra-passe">
         
-        <button id="btn-login">ENTRAR</button>
+        <button id="btn-login">ENTRAR NA TAVERNA</button>
         <button id="btn-registrar" class="btn-sec">CRIAR NOVA CONTA</button>
         
         <div style="margin: 15px 0; color: #555;">ou</div>
@@ -36,8 +35,7 @@
     </div>
 
     <script type="module">
-        // Importamos o getDocFromServer
-        import { auth, db, googleProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInWithPopup, doc, getDocFromServer, signOut } from "./firebase.js";
+        import { auth, googleProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInWithPopup, signOut } from "./firebase.js";
 
         const EMAIL_DO_MESTRE = "pabloss.ti@gmail.com";
         const statusMsg = document.getElementById('status-msg');
@@ -51,35 +49,16 @@
                     return;
                 }
                 
-                // Vai direto para a tela de Seleção de Mundos e Heróis
+                // Redireciona todos os jogadores para a seleção de mundos
                 window.location.href = "selecao.html"; 
             } else {
                 statusMsg.innerText = "Pronto para jogar.";
             }
         });
 
-                try {
-                    // MUDANÇA CRUCIAL: Agora ele IGNORA a cache e vai sempre ao servidor real
-                    const snap = await getDocFromServer(doc(db, "personagens", user.uid));
-                    if (snap.exists()) {
-                        window.location.href = "mundo.html"; 
-                    } else {
-                        window.location.href = "criacao.html"; 
-                    }
-                } catch (error) {
-                    // Se der erro (ex: utilizador foi apagado na base de dados e não tem permissão)
-                    statusMsg.innerText = "Sessão inválida. Por favor, inicie sessão novamente.";
-                    statusMsg.style.color = "#f44";
-                    signOut(auth); // Limpa a cache "fantasma" do navegador
-                }
-            } else {
-                statusMsg.innerText = "Pronto para jogar.";
-            }
-        });
-
-        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert(e.message));
-        document.getElementById('btn-registrar').onclick = () => createUserWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert(e.message));
-        document.getElementById('btn-google').onclick = () => signInWithPopup(auth, googleProvider).catch(e => alert(e.message));
+        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Erro: " + e.message));
+        document.getElementById('btn-registrar').onclick = () => createUserWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Erro: " + e.message));
+        document.getElementById('btn-google').onclick = () => signInWithPopup(auth, googleProvider).catch(e => alert("Erro: " + e.message));
     </script>
 </body>
 </html>
