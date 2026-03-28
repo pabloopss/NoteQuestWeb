@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seleção de Heróis - NoteQuest</title>
+    <style>
+        :root { --bg: #050505; --panel: #151515; --text: #eee; --neon: #0fa; --gold: #ffd700; --danger: #f44; --magic: #0ff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .container { background: var(--panel); border: 2px solid var(--neon); padding: 30px; width: 100%; max-width: 500px; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 255, 170, 0.1); text-align: center; }
+        button { background: var(--neon); color: #000; font-weight: bold; font-family: inherit; padding: 14px; border: none; cursor: pointer; width: 100%; margin-bottom: 10px; border-radius: 6px; font-size: 16px; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); }
+        button.btn-sec { background: transparent; color: var(--neon); border: 2px solid var(--neon); }
+        button.btn-perigo { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+        .escondido { display: none !important; }
+        
+        .char-slot { background: #0a0a0a; border: 1px dashed var(--gold); padding: 15px; margin-bottom: 10px; border-radius: 6px; text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.3s; }
+        .char-slot:hover { background: #222; border-color: var(--neon); }
+        .char-info strong { color: var(--gold); font-size: 18px; }
+        .char-info span { display: block; color: #888; font-size: 14px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="tela-mundos">
+        <h2 style="color: var(--magic); margin-top: 0;">🔮 ESCOLHA O SEU DESTINO</h2>
+        <p style="color: #aaa; margin-bottom: 25px;">Para qual reino a sua alma deseja viajar?</p>
+        
+        <button onclick="selecionarMundo('Mundo Alpha')">🌍 Mundo Alpha (Oficial)</button>
+        <button onclick="selecionarMundo('Mundo Omega')" class="btn-sec">🌋 Mundo Ômega (Caos)</button>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+            <button id="btn-painel-gm" class="escondido" style="background: #d0f; color: #fff;" onclick="window.location.href='mestre.html'">👁️ PAINEL GM</button>
+            <button class="btn-perigo" onclick="deslogar()">🚪 SAIR DA CONTA</button>
+        </div>
+    </div>
+
+    <div class="container escondido" id="tela-herois">
+        <h2 style="color: var(--gold); margin-top: 0;">⚔️ OS SEUS HERÓIS</h2>
+        <p style="color: #aaa; margin-bottom: 20px;">Servidor: <strong id="nome-servidor" style="color: var(--magic);"></strong></p>
+        
+        <div id="lista-slots">
+            <p style="color: #888;">Procurando pergaminhos de aventureiros...</p>
+        </div>
+
+        <button id="btn-novo-heroi" class="btn-sec" onclick="criarNovoHeroi()">➕ FORJAR NOVO HERÓI</button>
+        <button class="btn-perigo" style="margin-top: 15px;" onclick="voltarMundos()">🔙 ESCOLHER OUTRO MUNDO</button>
+    </div>
+
+    <script type="module">
+        import { auth, db, collection, getDocs, signOut, onAuthStateChanged } from "./firebase.js";
+        
+        let UID = null; 
+        let SERVIDOR_ESCOLHIDO = null;
+        let QTD_HEROIS = 0;
+        const MAX_SLOTS = 3;
+        const EMAIL_DO_MESTRE = "pabloss.ti@gmail.com";
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                UID = user.uid;
+                if (user.email === EMAIL_DO_MESTRE) document.getElementById('btn-painel-gm').classList.remove('escondido');
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        window.deslogar = () => { signOut(auth); };
+
+        window.selecionarMundo = async function(mundo) {
+            SERVIDOR_ESCOLHIDO = mundo;
+            sessionStorage.setItem('servidorAtual', mundo);
+            document.getElementById('nome-servidor').innerText = mundo;
+            
+            document.getElementById('tela-mundos').classList.add('escondido');
+            document.getElementById('tela-herois').classList.remove('escondido');
+            
+            await carregarHerois();
+        };
+
+        window.voltarMundos = function() {
+            document.getElementById('tela-herois').classList.add('escondido');
+            document.getElementById('tela-mundos').classList.remove('escondido');
+        };
+
+        async function carregarHerois() {
+            const lista = document.getElementById('lista-slots');
+            lista.innerHTML = "";
+            QTD_HEROIS = 0;
+
+            // Busca todos os personagens na coleção global
+            const querySnapshot = await getDocs(collection(db, "personagens"));
+            
+            querySnapshot.forEach((docSnap) => {
+                let p = docSnap.data();
+                // Filtra para mostrar apenas os heróis DESTE utilizador e NESTE servidor
+                if (p.userId === UID && p.servidor === SERVIDOR_ESCOLHIDO) {
+                    QTD_HEROIS++;
+                    let slot = document.createElement('div');
+                    slot.className = "char-slot";
+                    slot.innerHTML = `
+                        <div class="char-info">
+                            <strong>${p.nome}</strong>
+                            <span>${p.raca} / ${p.classe} • Nv. 1</span>
+                            <span>PV: ${p.pv_atual}/${p.pv_maximo} • 💰 ${p.ouro}g</span>
+                        </div>
+                        <div style="font-size: 24px;">▶</div>
+                    `;
+                    // Guarda o ID do personagem para carregar no mundo.html
+                    slot.onclick = () => jogarComHeroi(docSnap.id);
+                    lista.appendChild(slot);
+                }
+            });
+
+            if (QTD_HEROIS === 0) {
+                lista.innerHTML = "<p style='color: #888; font-style: italic; margin-bottom: 20px;'>Não possui heróis neste mundo.</p>";
+            }
+
+            // Bloqueia a criação se atingir o limite
+            if (QTD_HEROIS >= MAX_SLOTS) {
+                document.getElementById('btn-novo-heroi').disabled = true;
+                document.getElementById('btn-novo-heroi').innerText = "🚫 LIMITE DE SLOTS ATINGIDO";
+            } else {
+                document.getElementById('btn-novo-heroi').disabled = false;
+                document.getElementById('btn-novo-heroi').innerText = `➕ FORJAR NOVO HERÓI (${QTD_HEROIS}/${MAX_SLOTS})`;
+            }
+        }
+
+        window.criarNovoHeroi = function() {
+            if (QTD_HEROIS < MAX_SLOTS) window.location.href = "criacao.html";
+        };
+
+        window.jogarComHeroi = function(charId) {
+            sessionStorage.setItem('charId', charId);
+            window.location.href = "mundo.html";
+        };
+    </script>
+</body>
+</html>
