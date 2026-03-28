@@ -23,12 +23,10 @@
         .hex-unexplored { background: #000; color: #333; opacity: 0.7;}
         .log-box { background: #000; border: 1px solid var(--neon); height: 120px; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.5; border-radius: 4px; }
         
-        /* COMBATE */
         .cartao-monstro { background: #220000; border: 1px solid var(--danger); padding: 10px; text-align: center; border-radius: 4px; width: 120px; cursor: pointer; transition: 0.2s;}
         .cartao-monstro.alvo { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); background: #440000; }
         .cartao-monstro.morto { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 
-        /* MODAL */
         #overlay-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 999; }
         #modal-dado { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid var(--gold); padding: 20px; z-index: 1000; text-align: center; border-radius: 8px; width: 90%; max-width: 350px; }
         .grid-dados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
@@ -48,14 +46,14 @@
         </div>
         <div style="display: flex; gap: 5px; flex-direction: column;">
             <button class="btn-sec" style="padding: 5px 10px; margin: 0;" onclick="window.location.href='ficha.html'">📜 FICHA</button>
-            <button class="btn-perigo" style="padding: 5px 10px; margin: 0;" onclick="deslogar()">🚪 SAIR</button>
+            <button class="btn-perigo" style="padding: 5px 10px; margin: 0;" onclick="window.location.href='selecao.html'">🚪 HERÓIS</button>
         </div>
     </div>
 
     <div id="tela-exploracao" class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0; color: #fff;" id="hex-coord">MAPA-MÚNDI [0,0]</h3>
-            <span style="font-size: 12px; color: var(--magic);">Mundo Alpha</span>
+            <span id="hud-servidor" style="font-size: 12px; color: var(--magic);">Mundo</span>
         </div>
         
         <div class="mapa-viewport"><div class="mapa-camada" id="camada-mundo"></div></div>
@@ -87,7 +85,7 @@
     <div id="overlay-modal" class="escondido"></div>
     <div id="modal-dado" class="escondido">
         <h2 id="titulo-dado" style="color: var(--gold); margin-top: 0;">ROLE O DADO!</h2>
-        <p id="desc-dado" style="color: #ccc; font-size: 14px;">Aguardando resultado físico...</p>
+        <p id="desc-dado" style="color: #ccc; font-size: 14px;">O destino aguarda o seu lançamento...</p>
         <div class="grid-dados">
             <button class="btn-dado" onclick="informarDado(1)">1</button><button class="btn-dado" onclick="informarDado(2)">2</button><button class="btn-dado" onclick="informarDado(3)">3</button>
             <button class="btn-dado" onclick="informarDado(4)">4</button><button class="btn-dado" onclick="informarDado(5)">5</button><button class="btn-dado" onclick="informarDado(6)">6</button>
@@ -95,26 +93,30 @@
     </div>
 
     <script type="module">
-        import { auth, db, doc, getDoc, updateDoc, setDoc, onSnapshot, signOut, onAuthStateChanged } from "./firebase.js";
+        import { auth, db, doc, getDoc, updateDoc, setDoc, onSnapshot, onAuthStateChanged } from "./firebase.js";
         
-        let UID = null; let PERSONAGEM = null; let MAPA_GLOBAL = {}; const SERVIDOR_ATUAL = "Mundo Alpha";
-        const REGRAS = window.REGRAS; let COMBATE_ATUAL = { ativo: false, monstros: [], alvoIndex: 0 };
+        const CHAR_ID = sessionStorage.getItem('charId');
+        const SERVIDOR_ATUAL = sessionStorage.getItem('servidorAtual') || "Mundo Alpha";
+        let PERSONAGEM = null; 
+        let MAPA_GLOBAL = {}; 
+        const REGRAS = window.REGRAS; 
+        let COMBATE_ATUAL = { ativo: false, monstros: [], alvoIndex: 0 };
+
+        if (!CHAR_ID) window.location.href = "selecao.html";
 
         onAuthStateChanged(auth, async (user) => {
-            if (user) { UID = user.uid; carregarJogo(); } 
+            if (user) { carregarJogo(); } 
             else window.location.href = "index.html";
         });
 
-        window.deslogar = () => { signOut(auth); };
-
         async function carregarJogo() {
-            const snap = await getDoc(doc(db, "personagens", UID));
+            const snap = await getDoc(doc(db, "personagens", CHAR_ID));
             if (snap.exists()) {
                 PERSONAGEM = snap.data();
-                if (PERSONAGEM.mundo.q === undefined) { PERSONAGEM.mundo = { q: 0, r: 0 }; updateDoc(doc(db, "personagens", UID), PERSONAGEM); }
+                if (PERSONAGEM.mundo.q === undefined) { PERSONAGEM.mundo = { q: 0, r: 0 }; updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }
                 if(PERSONAGEM.masmorra) window.location.href = "masmorra.html"; 
                 iniciarListenerMapa();
-            } else window.location.href = "criacao.html";
+            } else window.location.href = "selecao.html";
         }
 
         function iniciarListenerMapa() {
@@ -136,13 +138,14 @@
             document.getElementById('hud-ouro').innerText = PERSONAGEM.ouro;
             document.getElementById('hud-prov').innerText = PERSONAGEM.provisoes;
             document.getElementById('hud-tocha').innerText = PERSONAGEM.tochas;
+            document.getElementById('hud-servidor').innerText = SERVIDOR_ATUAL;
 
             const mq = PERSONAGEM.mundo.q; const mr = PERSONAGEM.mundo.r;
             const hexAtual = MAPA_GLOBAL[`${mq},${mr}`];
             
             if(!hexAtual) {
                 PERSONAGEM.mundo.q = 0; PERSONAGEM.mundo.r = 0;
-                updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+                updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
                 return;
             }
 
@@ -150,7 +153,7 @@
             document.getElementById('hex-terreno').innerText = `${REGRAS.mundo.terrenos_info[hexAtual.terreno].emoji} ${hexAtual.terreno}`;
             
             const btnCid = document.getElementById('acoes-cidade');
-            if(hexAtual.terreno === "Cidade Humana") btnCid.classList.remove('escondido'); else btnCid.classList.add('escondido');
+            if(hexAtual.terreno.includes("Cidade")) btnCid.classList.remove('escondido'); else btnCid.classList.add('escondido');
             
             const btnMas = document.getElementById('btn-entrar-masmorra');
             if (hexAtual.masmorra) {
@@ -191,104 +194,96 @@
             });
         }
 
-        // =====================================================================
-        // CORREÇÃO 1: A FUNÇÃO VIAJAR AGORA ATUALIZA ECRÃS DE HEXES CONHECIDOS
-        // =====================================================================
         window.viajar = async function(nq, nr, hexConhecido) {
             let custo = hexConhecido ? REGRAS.mundo.terrenos_info[hexConhecido.terreno].custo : 1;
-            if(PERSONAGEM.provisoes < custo) return alert(`Falta ${custo} Provisão(ões)!`);
+            if(PERSONAGEM.provisoes < custo) return alert(`A viagem consome recursos. Faltam-te ${custo} Provisões!`);
             PERSONAGEM.provisoes -= custo; let key = `${nq},${nr}`;
 
             if (!MAPA_GLOBAL[key]) {
-                log(`Viajaste para o desconhecido... (-${custo} 🍖)`);
-                let rT = await pedirDado("NOVO HEXÁGONO", "Role 1d6."); let tNome = REGRAS.mundo.geracao_terreno[rT] || "Planície";
-                MAPA_GLOBAL[key] = { terreno: tNome, masmorra: null }; log(`🗺️ Terreno: ${tNome}`);
-                let rB = await pedirDado("PROCURAR", "Role 1d6. 5+ acha masmorra!");
-                if (rB >= 5) { let rM = await pedirDado("MASMORRA", "Role 1d6."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[tNome][rM - 1]; log(`⚠️ MASMORRA REVELADA!`); }
+                log(`Avanças pelos ermos desconhecidos... (-${custo} 🍖)`);
+                let rT = await pedirDado("A NATUREZA DO REINO", "Lanças um olhar sobre o horizonte. Role 1d6 para determinar o terreno."); 
+                let tNome = REGRAS.mundo.geracao_terreno[rT] || "Planície";
+                MAPA_GLOBAL[key] = { terreno: tNome, masmorra: null }; log(`🗺️ Adentras num(a): ${tNome}`);
+                
+                let rB = await pedirDado("VIGILÂNCIA", "Procuras sinais de ruínas antigas. Role 1d6 (5 ou 6 encontra algo).");
+                if (rB >= 5) { 
+                    let rM = await pedirDado("A ESTRUTURA", "Uma sombra ergue-se. Role 1d6 para revelar o nome do local."); 
+                    MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[tNome][rM - 1]; 
+                    log(`⚠️ DESCOBERTA: ${MAPA_GLOBAL[key].masmorra}!`); 
+                }
                 await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] });
             } else {
-                log(`Viajaste por território mapeado... (-${custo} 🍖)`);
+                log(`Viajas por território mapeado... (-${custo} 🍖)`);
             }
             
-            // Grava a nova posição
             PERSONAGEM.mundo.q = nq; PERSONAGEM.mundo.r = nr; 
-            await updateDoc(doc(db, "personagens", UID), PERSONAGEM);
-            
-            // FORÇA A ATUALIZAÇÃO DO ECRÃ MESMO QUE O HEX JÁ FOSSE CONHECIDO
-            atualizarInterface(); 
-            desenharMapa();
+            await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
+            atualizarInterface(); desenharMapa();
 
-            // Lógica de Eventos
             let hexAtual = MAPA_GLOBAL[key];
-            if (hexAtual.terreno !== "Cidade Humana") {
-                let r1 = await pedirDado("EVENTO 1", "Role 1d6."); let r2 = await pedirDado("EVENTO 2", "Segundo 1d6.");
+            if (!hexAtual.terreno.includes("Cidade")) {
+                let r1 = await pedirDado("O PERIGO À ESPREITA (1)", "Os ermos são traiçoeiros. Role o primeiro 1d6."); 
+                let r2 = await pedirDado("O PERIGO À ESPREITA (2)", "Role o segundo 1d6 para o Evento de Viagem.");
                 let soma = parseInt(r1) + parseInt(r2);
                 if (soma <= 6 && REGRAS.eventos[hexAtual.terreno]) {
                     let ev = REGRAS.eventos[hexAtual.terreno][soma] || REGRAS.eventos[hexAtual.terreno][6];
                     log(`⚠️ EVENTO: ${ev}`);
-                    if (ev.includes("PV")) { alert(`EMBOSCADA!\n${ev}`); iniciarCombate(ev); } 
+                    if (ev.includes("PV")) { alert(`Foste apanhado desprevenido!\n${ev}`); iniciarCombate(ev); } 
                     else {
                         if(ev.includes("perde 1 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-1);
                         if(ev.includes("perde 2 🍖")) PERSONAGEM.provisoes = Math.max(0, PERSONAGEM.provisoes-2);
                         if(ev.includes("perde 2 PV")) PERSONAGEM.pv_atual = Math.max(0, PERSONAGEM.pv_atual-2);
-                        await updateDoc(doc(db, "personagens", UID), PERSONAGEM);
+                        await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
                         atualizarInterface();
                     }
                 }
             }
         };
 
-        // =====================================================================
-        // CORREÇÃO 2: A FUNÇÃO ENTRAR MASMORRA FOI LIGADA E GASTA A TOCHA!
-        // =====================================================================
         window.entrarMasmorra = async function() {
             const hexAtual = MAPA_GLOBAL[`${PERSONAGEM.mundo.q},${PERSONAGEM.mundo.r}`];
             if(!hexAtual || !hexAtual.masmorra) return;
             
-            if(PERSONAGEM.tochas <= 0) return alert("Precisas de pelo menos 1 Tocha (🔥) para entrar na escuridão!");
+            if(PERSONAGEM.tochas <= 0) return alert("Precisas de pelo menos 1 Tocha (🔥) para sobreviver na escuridão!");
             PERSONAGEM.tochas--;
             
+            let rS = Math.floor(Math.random() * 6) + 1;
+            let seg = REGRAS.segmentos["Corredor"].find(s => s.min <= rS && s.max >= rS);
+            
             PERSONAGEM.masmorra = {
-                nome: hexAtual.masmorra,
-                nivel: 1,
-                x: 0,
-                y: 0,
-                mapa: { "0,0": { tipo: "Entrada", icone: "🪜", portasRestantes: 1 } }
+                nome: hexAtual.masmorra, nivel: 1, x: 0, y: 0,
+                mapa: { "0,0": { tipo: seg.tipo, icone: "🔲", portasRestantes: seg.portas, explorada: true } }
             };
             
-            await updateDoc(doc(db, "personagens", UID), PERSONAGEM);
-            window.location.href = "masmorra.html"; // Agora sim, a sala inicial está montada!
+            await updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM);
+            window.location.href = "masmorra.html"; 
         };
 
-        // Ações da Cidade
-        window.tavernaBoatos = async function() { if(PERSONAGEM.ouro < 1) return; PERSONAGEM.ouro--; let rol = await pedirDado("BOATOS", "Pagou 1g. Role 1d6 (4+)."); if (rol >= 4) { let dir = VIZINHOS_HEX[Math.floor(Math.random() * 6)]; let key = `${PERSONAGEM.mundo.q + dir[0]},${PERSONAGEM.mundo.r + dir[1]}`; if(!MAPA_GLOBAL[key]) MAPA_GLOBAL[key] = { terreno: "Planície", masmorra: null }; if (!MAPA_GLOBAL[key].masmorra) { let rt = await pedirDado("GERAR", "Role 1d6!"); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[MAPA_GLOBAL[key].terreno][rt-1]; log(`🍺 Masmorra revelada!`); await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] }); } } else log("🍺 Nada útil."); updateDoc(doc(db, "personagens", UID), PERSONAGEM); };
-        window.descansarEstalagem = function() { if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM.pv_atual = PERSONAGEM.pv_maximo; log("🛌 Curou tudo."); updateDoc(doc(db, "personagens", UID), PERSONAGEM); }};
-        window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Comprou 1 ${i}.`); updateDoc(doc(db, "personagens", UID), PERSONAGEM); }};
+        window.tavernaBoatos = async function() { if(PERSONAGEM.ouro < 1) return; PERSONAGEM.ouro--; let rol = await pedirDado("RUMORES NA TAVERNA", "Pagas 1 Moeda de Ouro ao taberneiro. Rola 1d6 (4+ para sucesso)."); if (rol >= 4) { let dir = VIZINHOS_HEX[Math.floor(Math.random() * 6)]; let key = `${PERSONAGEM.mundo.q + dir[0]},${PERSONAGEM.mundo.r + dir[1]}`; if(!MAPA_GLOBAL[key]) MAPA_GLOBAL[key] = { terreno: "Planície", masmorra: null }; if (!MAPA_GLOBAL[key].masmorra) { let rt = await pedirDado("A LENDA REVELADA", "O taberneiro desenha um X no teu mapa. Rola 1d6 para determinar o local."); MAPA_GLOBAL[key].masmorra = REGRAS.tabela_terrenos_masmorra[MAPA_GLOBAL[key].terreno][rt-1]; log(`🍺 Um novo local foi revelado no teu mapa!`); await updateDoc(doc(db, "mundos", SERVIDOR_ATUAL), { [key]: MAPA_GLOBAL[key] }); } } else log("🍺 O bêbado apenas balbuciou disparates. Dinheiro perdido."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); };
+        window.descansarEstalagem = function() { if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM.pv_atual = PERSONAGEM.pv_maximo; log("🛌 Uma noite quente e segura. Feridas curadas."); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
+        window.comprarItem = function(i) { let limit = (i === 'tochas') ? 10 : 20; if(PERSONAGEM[i] >= limit) return alert(`As tuas costas doem. Limite alcançado!`); if(PERSONAGEM.ouro > 0){ PERSONAGEM.ouro--; PERSONAGEM[i]++; log(`Guardaste 1 ${i} na mochila.`); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); }};
 
-        // =========================================================
-        // COMBATE NO MUNDO
-        // =========================================================
         function parseMonstroString(str) { let qtd = 1; let nome = str; let matchQtd = str.match(/^(\d+)\s+(.*)/); if (matchQtd) { qtd = parseInt(matchQtd[1]); nome = matchQtd[2]; } let pv = 1, dano = 1, habs = []; if (nome.includes('(')) { let partes = nome.split('('); nome = partes[0].trim(); let stats = partes[1].replace(')', '').split(';'); stats.forEach(s => { s = s.trim().toLowerCase(); if(s.includes('pv')) pv = parseInt(s); else if(s.includes('dano')) dano = parseInt(s.replace('dano','')); else habs.push(s); }); } let arr = []; for(let i=0; i<qtd; i++) arr.push({ nome: qtd > 1 ? `${nome} ${i+1}` : nome, pv_max: pv, pv_atual: pv, dano: dano, habilidades: habs, vivo: true }); return arr; }
         
-        window.iniciarCombate = function(str) { COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0 }; document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido'); document.getElementById('log-combate').innerHTML = ""; logCombate(`Foste atacado por: ${str}`, "var(--danger)"); renderizarInimigos(); };
+        window.iniciarCombate = function(str) { COMBATE_ATUAL = { ativo: true, monstros: parseMonstroString(str), alvoIndex: 0 }; document.getElementById('tela-exploracao').classList.add('escondido'); document.getElementById('tela-combate').classList.remove('escondido'); document.getElementById('log-combate').innerHTML = ""; logCombate(`As lâminas cruzam-se! Enfrentas: ${str}`, "var(--danger)"); renderizarInimigos(); };
         function renderizarInimigos() { const div = document.getElementById('combate-inimigos'); div.innerHTML = ""; COMBATE_ATUAL.monstros.forEach((m, index) => { let card = document.createElement('div'); card.className = `cartao-monstro ${index === COMBATE_ATUAL.alvoIndex ? 'alvo' : ''} ${!m.vivo ? 'morto' : ''}`; card.innerHTML = `<strong style="color:var(--gold)">${m.nome}</strong><br>❤️ ${m.pv_atual}/${m.pv_max}<br><small>🗡️ ${m.dano}</small>`; if(m.vivo) card.onclick = () => { COMBATE_ATUAL.alvoIndex = index; renderizarInimigos(); }; div.appendChild(card); }); }
         function logCombate(msg, cor="#eee") { const div = document.getElementById('log-combate'); div.innerHTML += `<div style="color: ${cor}; border-bottom: 1px dashed #333; padding: 4px 0;">> ${msg}</div>`; div.scrollTop = div.scrollHeight; }
         
         window.turnoJogador = async function() {
-            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return alert("Selecione um alvo!");
-            let rD = parseInt(await pedirDado("ATAQUE", "Role 1d6.")); let mD = 0; if(PERSONAGEM.arma_dano.includes('+')) mD = parseInt(PERSONAGEM.arma_dano.split('+')[1]); else if(PERSONAGEM.arma_dano.includes('-')) mD = -parseInt(PERSONAGEM.arma_dano.split('-')[1]);
-            let dF = Math.max(0, rD + mD); let msg = `Ataque [Dado ${rD}]: ${dF} dano!`;
-            if (rD === 6 && alvo.habilidades.some(h => h.includes("ponto fraco"))) { dF *= 2; msg += " (CRÍTICO!)"; }
-            if (rD === 1 && alvo.habilidades.some(h => h.includes("regen"))) { alvo.pv_atual = Math.min(alvo.pv_max, alvo.pv_atual + 6); msg += " (Regenerou-se!)"; }
-            if (rD === 1 && alvo.habilidades.some(h => h.includes("explosivo"))) { PERSONAGEM.pv_atual -= alvo.pv_atual; msg += " 💥 EXPLODIU!"; dF = 999; }
+            let alvo = COMBATE_ATUAL.monstros[COMBATE_ATUAL.alvoIndex]; if(!alvo || !alvo.vivo) return alert("Tens de mirar num inimigo vivo!");
+            let rD = parseInt(await pedirDado("O GOLPE", "Sentes o peso da tua arma. Rola 1d6.")); let mD = 0; if(PERSONAGEM.arma_dano.includes('+')) mD = parseInt(PERSONAGEM.arma_dano.split('+')[1]); else if(PERSONAGEM.arma_dano.includes('-')) mD = -parseInt(PERSONAGEM.arma_dano.split('-')[1]);
+            let dF = Math.max(0, rD + mD); let msg = `Atacaste [Dado ${rD}]: ${dF} de dano!`;
+            if (rD === 6 && alvo.habilidades.some(h => h.includes("ponto fraco"))) { dF *= 2; msg += " (GOLPE CRÍTICO!)"; }
+            if (rD === 1 && alvo.habilidades.some(h => h.includes("regen"))) { alvo.pv_atual = Math.min(alvo.pv_max, alvo.pv_atual + 6); msg += " (A criatura regenerou-se!)"; }
+            if (rD === 1 && alvo.habilidades.some(h => h.includes("explosivo"))) { PERSONAGEM.pv_atual -= alvo.pv_atual; msg += " 💥 A BESTA EXPLODIU!"; dF = 999; }
             alvo.pv_atual -= dF; logCombate(msg, "var(--neon)");
-            if (alvo.pv_atual <= 0) { alvo.pv_atual = 0; alvo.vivo = false; logCombate(`💀 ${alvo.nome} caiu!`, "#888"); }
+            if (alvo.pv_atual <= 0) { alvo.pv_atual = 0; alvo.vivo = false; logCombate(`💀 O ${alvo.nome} desaba sem vida.`, "#888"); }
             renderizarInimigos();
-            if (COMBATE_ATUAL.monstros.every(m => !m.vivo)) { logCombate("VITÓRIA!", "var(--gold)"); updateDoc(doc(db, "personagens", UID), PERSONAGEM); setTimeout(() => { COMBATE_ATUAL.ativo = false; document.getElementById('tela-combate').classList.add('escondido'); document.getElementById('tela-exploracao').classList.remove('escondido'); }, 1500); } else turnoMonstros();
+            if (COMBATE_ATUAL.monstros.every(m => !m.vivo)) { logCombate("VITÓRIA! O caminho está livre.", "var(--gold)"); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); setTimeout(() => { COMBATE_ATUAL.ativo = false; document.getElementById('tela-combate').classList.add('escondido'); document.getElementById('tela-exploracao').classList.remove('escondido'); }, 2000); } else turnoMonstros();
         };
         
-        function turnoMonstros() { let d = 0; COMBATE_ATUAL.monstros.forEach(m => { if(m.vivo) d += m.dano; }); if (d > 0) { PERSONAGEM.pv_atual -= d; logCombate(`Ataque inimigo: ${d} dano!`, "var(--danger)"); atualizarInterface(); updateDoc(doc(db, "personagens", UID), PERSONAGEM); if (PERSONAGEM.pv_atual <= 0) { alert("MORRESTE!"); window.location.href = "index.html"; } } }
-        window.fugirCombate = function() { logCombate("Fugiste em pânico!", "#aaa"); setTimeout(() => { COMBATE_ATUAL.ativo = false; document.getElementById('tela-combate').classList.add('escondido'); document.getElementById('tela-exploracao').classList.remove('escondido'); }, 1000); };
+        function turnoMonstros() { let d = 0; COMBATE_ATUAL.monstros.forEach(m => { if(m.vivo) d += m.dano; }); if (d > 0) { PERSONAGEM.pv_atual -= d; logCombate(`Ataque implacável: Sofreste ${d} de dano!`, "var(--danger)"); atualizarInterface(); updateDoc(doc(db, "personagens", CHAR_ID), PERSONAGEM); if (PERSONAGEM.pv_atual <= 0) { alert("Caíste em batalha. A tua lenda termina aqui."); window.location.href = "selecao.html"; } } }
+        window.fugirCombate = function() { logCombate("Fugiste em pânico para longe da batalha!", "#aaa"); setTimeout(() => { COMBATE_ATUAL.ativo = false; document.getElementById('tela-combate').classList.add('escondido'); document.getElementById('tela-exploracao').classList.remove('escondido'); }, 1500); };
     </script>
 </body>
 </html>
