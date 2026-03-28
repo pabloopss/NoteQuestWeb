@@ -41,7 +41,7 @@
         </div>
         
         <div class="card">
-            <h3 style="margin-top: 0; color: var(--gold);">🌍 Gestão de Mundos (Servidores)</h3>
+            <h3 style="margin-top: 0; color: var(--gold);">🌍 Gestão de Mundos</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <input type="text" id="novo-mundo" placeholder="Ex: Mundo Delta" style="flex: 2; margin: 0;">
                 <button onclick="criarMundo()" style="flex: 1; margin: 0;">➕ CRIAR MUNDO</button>
@@ -53,10 +53,10 @@
         </div>
 
         <div class="card">
-            <h3 style="margin-top: 0; color: #0fa;">🦸 Personagens dos Jogadores</h3>
+            <h3 style="margin-top: 0; color: #0fa;">🦸 Personagens Ativos</h3>
             <div style="overflow-x: auto;">
                 <table>
-                    <thead><tr><th>Herói</th><th>Raça / Classe</th><th>Ouro / Prov.</th><th>Ações</th></tr></thead>
+                    <thead><tr><th>Herói</th><th>Raça/Classe</th><th>Servidor</th><th>Ações</th></tr></thead>
                     <tbody id="lista-personagens"><tr><td colspan="4">A carregar...</td></tr></tbody>
                 </table>
             </div>
@@ -64,21 +64,7 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-            authDomain: "notequestweb.firebaseapp.com",
-            projectId: "notequestweb",
-            storageBucket: "notequestweb.firebasestorage.app",
-            messagingSenderId: "1062376453055",
-            appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
-        };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        import { auth, db, collection, getDocs, doc, deleteDoc, setDoc, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./firebase.js";
 
         const EMAIL_DO_MESTRE = "pabloss.ti@gmail.com"; 
 
@@ -90,7 +76,7 @@
                     carregarMundos();
                     carregarPersonagens();
                 } else {
-                    document.getElementById('msg-erro').innerText = "Acesso negado! Exclusivo para o Game Master.";
+                    document.getElementById('msg-erro').innerText = "Acesso negado!";
                     signOut(auth);
                 }
             } else {
@@ -109,13 +95,11 @@
 
         window.deslogarGm = () => { signOut(auth); };
 
-        // O SEGREDO DO MESTRE: Ir para o jogo!
         window.jogarComoGM = () => {
             sessionStorage.setItem('modo_jogador', 'true');
-            window.location.href = "index.html";
+            window.location.href = "selecao.html";
         };
 
-        // GESTÃO DE MUNDOS
         window.criarMundo = async function() {
             const nome = document.getElementById('novo-mundo').value;
             if(!nome) return alert("Digita um nome para o mundo!");
@@ -142,20 +126,20 @@
             });
         }
 
-        // GESTÃO DE PERSONAGENS
         async function carregarPersonagens() {
             const tbody = document.getElementById('lista-personagens'); tbody.innerHTML = "";
             const querySnapshot = await getDocs(collection(db, "personagens"));
             if(querySnapshot.empty) { tbody.innerHTML = "<tr><td colspan='4'>Ainda não existem heróis.</td></tr>"; return; }
             querySnapshot.forEach((docSnap) => {
                 let p = docSnap.data(); let tr = document.createElement('tr');
-                tr.innerHTML = `<td><strong style="color:#0fa;">${p.nome}</strong></td> <td>${p.raca}/${p.classe}</td> <td>${p.ouro}g / ${p.provisoes}🍖</td> <td><button class="btn-del" onclick="deletarPersonagem('${docSnap.id}')">Executar</button></td>`;
+                // Adicionado a coluna do servidor para o mestre saber onde ele está jogando
+                tr.innerHTML = `<td><strong style="color:#0fa;">${p.nome}</strong></td> <td>${p.raca}/${p.classe}</td> <td>${p.servidor || 'Desconhecido'}</td> <td><button class="btn-del" onclick="deletarPersonagem('${docSnap.id}')">Executar</button></td>`;
                 tbody.appendChild(tr);
             });
         }
 
-        window.deletarPersonagem = async function(uid) {
-            if(confirm("Executar este herói para sempre?")) { await deleteDoc(doc(db, "personagens", uid)); carregarPersonagens(); }
+        window.deletarPersonagem = async function(charId) {
+            if(confirm("Executar este herói para sempre?")) { await deleteDoc(doc(db, "personagens", charId)); carregarPersonagens(); }
         };
     </script>
 </body>
