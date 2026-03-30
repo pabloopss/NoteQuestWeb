@@ -13,28 +13,27 @@
         input { flex: 1; min-width: 150px; }
         
         button { color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 5px; }
-        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         .btn-primary { background-color: #3498db; }
         .btn-primary:hover { background-color: #2980b9; }
         .btn-danger { background-color: #e74c3c; }
         .btn-success { background-color: #2ecc71; }
         .btn-warning { background-color: #f39c12; }
-        .btn-start { background-color: #9b59b6; margin-bottom: 15px;} /* Botão Roxo para Iniciar */
+        .btn-start { background-color: #9b59b6; margin-bottom: 15px;}
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
         .controles-ponto { display: flex; gap: 5px; }
         
-        /* Novas colunas para os jogadores em quadra */
         .jogadores-quadra-container { display: flex; gap: 10px; margin-top: 15px; }
         .jogadores-coluna { flex: 1; background: #ecf0f1; padding: 10px; border-radius: 8px; }
         .jogadores-coluna h4 { margin-top: 0; text-align: center; color: #2980b9; }
-        .lista-nomes-quadra { font-size: 14px; line-height: 1.6; }
+        .lista-nomes-quadra { font-size: 14px; line-height: 1.6; text-align: left; padding-left: 10px; }
 
         ul { list-style-type: none; padding: 0; }
         li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
         .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
-        #statusConexao { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
+        #statusConexao { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
     </style>
 </head>
 <body>
@@ -103,21 +102,32 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="firebase.js"></script>
 
     <script>
+        // 1. SUA CONFIGURAÇÃO AQUI DENTRO TBM (Apaguei o firebase.js para evitar erro)
+        const firebaseConfig = {
+  apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
+  authDomain: "notequestweb.firebaseapp.com",
+  projectId: "notequestweb",
+  storageBucket: "notequestweb.firebasestorage.app",
+  messagingSenderId: "1062376453055",
+  appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
+        };
+
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Variáveis de Controle
         let filaExperientes = [];
         let filaIniciantes = [];
         let timeA = []; 
         let timeB = []; 
         let pontos = { A: 0, B: 0 };
-        let partidaEmAndamento = false; // A Trava
+        let partidaEmAndamento = false;
 
-        // Conexão e Leitura
+        // Ao abrir a página, ele OBRIGA a baixar os dados antes de exibir qualquer coisa
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
+            const status = document.getElementById('statusConexao');
+            
             if (doc.exists) {
                 const dados = doc.data();
                 filaExperientes = dados.filaExperientes || [];
@@ -125,23 +135,21 @@
                 timeA = dados.timeA || [];
                 timeB = dados.timeB || [];
                 pontos = dados.pontos || { A: 0, B: 0 };
-                partidaEmAndamento = dados.partidaEmAndamento || false; // Puxa o estado da trava
+                partidaEmAndamento = dados.partidaEmAndamento || false;
                 
-                atualizarTela();
+                atualizarTela(); // Só atualiza a tela depois que baixar os dados!
                 
-                const status = document.getElementById('statusConexao');
-                status.innerText = "🟢 Sincronizado e Online";
+                status.innerText = "🟢 Sincronizado e Online (Lista Salva)";
                 status.style.color = "green";
             } else {
-                salvarNoFirestore();
+                salvarNoFirestore(); // Se for a primeira vez, cria o banco vazio
             }
         }, (error) => {
             const status = document.getElementById('statusConexao');
-            status.innerText = "🔴 Erro de Conexão: " + error.message;
+            status.innerText = "🔴 Erro de Conexão: Verifique as chaves (SEU_PROJETO).";
             status.style.color = "red";
         });
 
-        // Gravação
         function salvarNoFirestore() {
             db.collection('volei').doc('partidaAtual').set({
                 filaExperientes: filaExperientes,
@@ -157,7 +165,7 @@
             });
         }
 
-        // Funções de Fila
+        // Lógica
         function adicionarJogador() {
             const nomeInput = document.getElementById('nomeJogador');
             const nivel = document.getElementById('nivelJogador').value;
@@ -179,18 +187,12 @@
             salvarNoFirestore();
         }
 
-        // Funções de Formação (Com a regra 4 e 2)
         function tentarFormarTimes() {
-            // Só forma se houver 4 experientes e 2 iniciantes
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                
                 if (timeA.length === 0) timeA = puxarJogadoresParaTime();
-                
-                // Tenta puxar pro Time B se houver gente de novo na fila após formar o Time A
                 if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                     timeB = puxarJogadoresParaTime();
                 }
-                
                 salvarNoFirestore();
             } else {
                 alert("Necessário 4 experientes e 2 iniciantes na fila.");
@@ -200,10 +202,9 @@
         function puxarJogadoresParaTime() {
             const exp = filaExperientes.splice(0, 4); 
             const ini = filaIniciantes.splice(0, 2);
-            return exp.concat(ini); // Junta os 4 exp com os 2 ini (Total 6)
+            return exp.concat(ini);
         }
 
-        // Funções de Controle de Partida (A Trava)
         function iniciarPartida() {
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
@@ -233,69 +234,57 @@
             let vencedor, perdedor;
             if (pontos.A > pontos.B) { vencedor = timeA; perdedor = timeB; } 
             else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
-            else return alert("Jogo empatado! Por favor, marque um ponto para definir o vencedor.");
+            else return alert("Jogo empatado! Marque um ponto para definir o vencedor.");
 
-            // Perdedor volta pro final da fila
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            // Vencedor vira Time A
             timeA = vencedor;
             timeB = [];
             pontos = { A: 0, B: 0 };
-            partidaEmAndamento = false; // Destrava a partida
+            partidaEmAndamento = false; 
 
-            // Já tenta puxar o próximo time automaticamente
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                 timeB = puxarJogadoresParaTime();
             } else {
-                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila para o próximo desafio.");
+                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila.");
             }
 
             salvarNoFirestore();
         }
 
-        // Atualização Visual Dinâmica
         function atualizarTela() {
-            // Placar
             document.getElementById('pontosA').innerText = pontos.A;
             document.getElementById('pontosB').innerText = pontos.B;
 
-            // Jogadores em Quadra (Agora separados por <br> nas colunas)
-            const formataTime = (time) => time.length > 0 ? time.map(j => j.nome).join('<br>') : "Vazio";
+            const formataTime = (time) => time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
             document.getElementById('listaTimeA').innerHTML = formataTime(timeA);
             document.getElementById('listaTimeB').innerHTML = formataTime(timeB);
 
-            // Contadores
             document.getElementById('countExp').innerText = filaExperientes.length;
             document.getElementById('countIni').innerText = filaIniciantes.length;
 
-            // Listas de Fila
             const renderJogador = (jogador) => `<li>${jogador.nome} <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button></li>`;
             document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
             document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
 
-            // GERENCIAMENTO DAS TRAVAS (Botões)
             const btnFormarTimes = document.getElementById('btnFormarTimes');
             const btnIniciar = document.getElementById('btnIniciarPartida');
             const btnFinalizar = document.getElementById('btnFinalizarPartida');
             const botoesPonto = ['btnPontoA', 'btnMenosPontoA', 'btnPontoB', 'btnMenosPontoB'];
 
             if (partidaEmAndamento) {
-                // Durante o jogo: Trava formar times e Iniciar. Libera placar e Finalizar.
                 btnFormarTimes.disabled = true;
                 btnIniciar.disabled = true;
                 btnFinalizar.disabled = false;
                 botoesPonto.forEach(id => document.getElementById(id).disabled = false);
             } else {
-                // Fora do jogo: Libera formar times e Iniciar (se tiver times cheios). Trava placar.
                 btnFormarTimes.disabled = false;
                 btnFinalizar.disabled = true;
                 botoesPonto.forEach(id => document.getElementById(id).disabled = true);
                 
-                // Só permite iniciar se tiver 6 de cada lado
                 if (timeA.length === 6 && timeB.length === 6) {
                     btnIniciar.disabled = false;
                 } else {
