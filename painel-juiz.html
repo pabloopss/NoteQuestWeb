@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vôlei do Tio Budog - Painel do Juiz</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
+        h1, h2, h3 { color: #2c3e50; text-align: center; }
+        .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .form-group { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        input { flex: 1; min-width: 150px; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-success { background-color: #2ecc71; }
+        .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
+        .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
+        .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; }
+        #statusConexao { text-align: center; font-size: 12px; color: #7f8c8d; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>🏐 Vôlei do Tio Budog</h1>
+    <div id="statusConexao">Conectando ao banco de dados...</div>
+
+    <div class="card">
+        <h2>Adicionar Jogador</h2>
+        <div class="form-group">
+            <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
+            <select id="nivelJogador">
+                <option value="experiente">Experiente</option>
+                <option value="iniciante">Iniciante</option>
+            </select>
+        </div>
+        <button onclick="adicionarJogador()">Adicionar à Fila</button>
+    </div>
+
+    <div class="card">
+        <h2>Partida Atual</h2>
+        <div class="placar">
+            <div class="time-box">
+                <div>Time A (Rei)</div>
+                <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
+                <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
+            </div>
+            <div class="time-box">
+                <div>Time B (Desafiante)</div>
+                <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
+                <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
+            </div>
+        </div>
+        <button onclick="finalizarPartida()" class="btn-danger">Finalizar Partida</button>
+        
+        <h3>Jogadores em Quadra</h3>
+        <p><strong>Time A:</strong> <span id="listaTimeA">Nenhum</span></p>
+        <p><strong>Time B:</strong> <span id="listaTimeB">Nenhum</span></p>
+    </div>
+
+    <div class="card">
+        <h2>Filas de Espera</h2>
+        <button onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times Iniciais</button>
+        
+        <h3>Experientes (<span id="countExp">0</span>)</h3>
+        <ul id="listaExperientes"></ul>
+
+        <h3>Iniciantes (<span id="countIni">0</span>)</h3>
+        <ul id="listaIniciantes"></ul>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // --- 1. CONFIGURAÇÃO DO FIREBASE (Cole as suas chaves aqui!) ---
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_PROJETO.firebaseapp.com",
+            databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
+            projectId: "SEU_PROJETO",
+            storageBucket: "SEU_PROJETO.appspot.com",
+            messagingSenderId: "SEU_ID",
+            appId: "SEU_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // --- 2. ESTADO DO JOGO ---
+        let filaExperientes = [];
+        let filaIniciantes = [];
+        let timeA = []; 
+        let timeB = []; 
+        let pontos = { A: 0, B: 0 };
+
+        // --- 3. INICIALIZAÇÃO (Puxando dados salvos no Firebase) ---
+        // Assim que a página abre, ele vai lá no Firebase e vê se já tinha jogo rolando
+        database.ref('partidaAtual').once('value').then((snapshot) => {
+            const dados = snapshot.val();
+            if (dados) {
+                // Se tem dados, nós restauramos as variáveis. O "|| []" garante que não dê erro se a fila estiver vazia.
+                filaExperientes = dados.filaExperientes || [];
+                filaIniciantes = dados.filaIniciantes || [];
+                timeA = dados.timeA || [];
+                timeB = dados.timeB || [];
+                pontos = dados.pontos || { A: 0, B: 0 };
+            }
+            document.getElementById('statusConexao').innerText = "🟢 Conectado e Sincronizado";
+            atualizarTela(); // Atualiza o visual com os dados puxados
+        }).catch((erro) => {
+            document.getElementById('statusConexao').innerText = "🔴 Erro ao conectar: " + erro.message;
+        });
+
+
+        // --- 4. FUNÇÃO MÁGICA DE SINCRONIZAÇÃO ---
+        // Toda vez que fizermos uma mudança, chamamos essa função para mandar tudo pro Firebase
+        function salvarNoFirebase() {
+            database.ref('partidaAtual').set({
+                filaExperientes: filaExperientes,
+                filaIniciantes: filaIniciantes,
+                timeA: timeA,
+                timeB: timeB,
+                pontos: pontos
+            });
+        }
+
+        // --- 5. LÓGICA DO JOGO (Agora com salvamento) ---
+
+        function adicionarJogador() {
+            const nomeInput = document.getElementById('nomeJogador');
+            const nivel = document.getElementById('nivelJogador').value;
+            const nome = nomeInput.value.trim();
+
+            if (nome === "") return alert("Digite o nome do jogador.");
+
+            const jogador = { nome: nome, nivel: nivel, id: Date.now() };
+
+            if (nivel === 'experiente') {
+                filaExperientes.push(jogador);
+            } else {
+                filaIniciantes.push(jogador);
+            }
+
+            nomeInput.value = ""; 
+            atualizarTela();
+            salvarNoFirebase(); // <--- Manda pro Firebase!
+        }
+
+        function removerDaFila(id, nivel) {
+            if (nivel === 'experiente') {
+                filaExperientes = filaExperientes.filter(j => j.id !== id);
+            } else {
+                filaIniciantes = filaIniciantes.filter(j => j.id !== id);
+            }
+            atualizarTela();
+            salvarNoFirebase(); // <--- Manda pro Firebase!
+        }
+
+        function tentarFormarTimes() {
+            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
+                if (timeA.length === 0) timeA = puxarJogadoresParaTime();
+                if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
+                    timeB = puxarJogadoresParaTime();
+                }
+                atualizarTela();
+                salvarNoFirebase(); // <--- Manda pro Firebase!
+            } else {
+                alert("Necessário 4 experientes e 2 iniciantes na fila.");
+            }
+        }
+
+        function puxarJogadoresParaTime() {
+            const exp = filaExperientes.splice(0, 4); 
+            const ini = filaIniciantes.splice(0, 2);
+            return exp.concat(ini);
+        }
+
+        function marcarPonto(time) {
+            pontos[time]++;
+            atualizarTela();
+            salvarNoFirebase(); // <--- Manda pro Firebase!
+        }
+
+        function finalizarPartida() {
+            if (timeA.length === 0 || timeB.length === 0) return alert("Não há partida para finalizar.");
+
+            let vencedor, perdedor;
+            if (pontos.A > pontos.B) { vencedor = timeA; perdedor = timeB; } 
+            else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
+            else return alert("Jogo empatado!");
+
+            // Perdedor volta pro final da fila
+            perdedor.forEach(jogador => {
+                if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                else filaIniciantes.push(jogador);
+            });
+
+            // Vencedor vira Time A, placar zera
+            timeA = vencedor;
+            timeB = [];
+            pontos = { A: 0, B: 0 };
+
+            // Puxa novo time
+            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
+                timeB = puxarJogadoresParaTime();
+            } else {
+                alert("Vencedor na quadra, mas faltam jogadores para o próximo desafio.");
+            }
+
+            atualizarTela();
+            salvarNoFirebase(); // <--- Manda pro Firebase!
+        }
+
+        // --- 6. ATUALIZAÇÃO VISUAL ---
+        function atualizarTela() {
+            document.getElementById('pontosA').innerText = pontos.A;
+            document.getElementById('pontosB').innerText = pontos.B;
+
+            document.getElementById('listaTimeA').innerText = timeA.length > 0 ? timeA.map(j => j.nome).join(', ') : "Nenhum";
+            document.getElementById('listaTimeB').innerText = timeB.length > 0 ? timeB.map(j => j.nome).join(', ') : "Nenhum";
+
+            document.getElementById('countExp').innerText = filaExperientes.length;
+            document.getElementById('countIni').innerText = filaIniciantes.length;
+
+            const renderJogador = (jogador) => `
+                <li>
+                    ${jogador.nome} 
+                    <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button>
+                </li>
+            `;
+            document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
+            document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
+        }
+    </script>
+</body>
+</html>
