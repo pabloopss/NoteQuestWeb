@@ -19,7 +19,7 @@
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
-    <div id="status">Conectando ao Firestore...</div>
+    <div id="status">Conectando à quadra...</div>
     <p>Acompanhe a partida em tempo real!</p>
 
     <div class="placar-container">
@@ -47,22 +47,11 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <script>
-        // 2. SUA CONFIGURAÇÃO
-        const firebaseConfig = {
-            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- PREENCHA COM O SEU
-            projectId: "SEU_PROJETO",                 // <-- PREENCHA COM O SEU
-            storageBucket: "SEU_PROJETO.appspot.com",   // <-- PREENCHA COM O SEU
-            messagingSenderId: "SEU_ID",              // <-- PREENCHA COM O SEU
-            appId: "SEU_APP_ID"                       // <-- PREENCHA COM O SEU
-        };
+    <script src="firebase.js"></script>
 
-        firebase.initializeApp(firebaseConfig);
+    <script>
         const db = firebase.firestore();
 
-        // 3. OUVINDO O FIRESTORE EM TEMPO REAL
-        // onSnapshot é a mágica do Firestore para tempo real
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             document.getElementById('status').innerText = "🟢 Ao Vivo";
             
