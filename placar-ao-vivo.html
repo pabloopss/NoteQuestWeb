@@ -6,7 +6,7 @@
     <title>Ao Vivo - Vôlei do Tio Budog</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #2c3e50; color: white; text-align: center; }
-        h1 { color: #f1c40f; }
+        h1 { color: #f1c40f; margin-bottom: 5px; }
         .placar-container { display: flex; justify-content: space-around; background: #34495e; padding: 20px; border-radius: 10px; margin-top: 20px; }
         .time-box { flex: 1; margin: 0 10px; }
         .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; }
@@ -17,14 +17,15 @@
         .jogadores-coluna h3 { margin-top: 0; color: #3498db; }
         .lista-nomes-quadra { font-size: 16px; line-height: 1.8; text-align: left; }
         
-        #status { font-size: 14px; color: #f39c12; margin-bottom: 10px; font-weight: bold; }
-        .status-andamento { color: #2ecc71; font-size: 18px; margin-top: 10px; font-weight: bold; }
+        #status { font-size: 14px; color: #f39c12; margin-bottom: 15px; font-weight: bold; }
+        .status-andamento { color: #2ecc71; font-size: 24px; margin-top: 10px; font-weight: bold; background-color: #1a252f; padding: 10px; border-radius: 8px; display: inline-block; }
     </style>
 </head>
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
     <div id="status">🟡 Conectando à quadra...</div>
+    
     <div id="statusJogo" class="status-andamento"></div>
 
     <div class="placar-container">
@@ -77,18 +78,19 @@
                 document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
                 document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
 
-                // LÓGICA NOVA: Verifica se há um vencedor ou se o jogo está rolando
                 const statusJogo = document.getElementById('statusJogo');
+                
+                // LÓGICA DE EXIBIÇÃO DO VENCEDOR / ANDAMENTO
                 if (dados.partidaEmAndamento) {
                     statusJogo.innerText = "🏐 Partida em Andamento!";
                     statusJogo.style.color = "#2ecc71";
                 } else if (dados.mensagemVencedor && dados.mensagemVencedor !== "") {
-                    // Se o jogo acabou e tem um vencedor salvo
-                    statusJogo.innerText = "🏆 " + dados.mensagemVencedor + " Aguardando próxima...";
-                    statusJogo.style.color = "#f39c12"; // Dourado/Laranja
+                    // Aparece gigante na tela quando tem vencedor
+                    statusJogo.innerText = dados.mensagemVencedor + " (Aguardando próxima partida...)";
+                    statusJogo.style.color = "#f1c40f"; 
                 } else {
                     statusJogo.innerText = "⏸️ Aguardando Início da Partida...";
-                    statusJogo.style.color = "#f1c40f";
+                    statusJogo.style.color = "#bdc3c7";
                 }
 
                 const formataJogadores = (time) => {
