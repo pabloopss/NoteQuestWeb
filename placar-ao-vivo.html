@@ -7,6 +7,8 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #2c3e50; color: white; text-align: center; }
         h1 { color: #f1c40f; margin-bottom: 5px; }
+        
+        /* Placar Principal */
         .placar-container { display: flex; justify-content: space-around; background: #34495e; padding: 20px; border-radius: 10px; margin-top: 20px; }
         .time-box { flex: 1; margin: 0 10px; }
         .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; font-weight: bold; }
@@ -19,6 +21,15 @@
         
         #status { font-size: 14px; color: #f39c12; margin-bottom: 15px; font-weight: bold; }
         .status-andamento { color: #2ecc71; font-size: 24px; margin-top: 10px; font-weight: bold; background-color: #1a252f; padding: 10px; border-radius: 8px; display: inline-block; }
+
+        /* Nova Seção: Fila de Espera / Próximos Times */
+        .titulo-fila { margin-top: 40px; color: #f1c40f; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
+        .proximos-times-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .proximo-time-box { background: #273746; padding: 15px; border-radius: 8px; min-width: 200px; text-align: left; border: 1px solid #34495e; }
+        .proximo-time-box h4 { margin-top: 0; color: #e67e22; text-align: center; border-bottom: 1px dashed #7f8c8d; padding-bottom: 5px; }
+        .vazio { color: #7f8c8d; font-style: italic; }
+        .exp { color: #ecf0f1; }
+        .ini { color: #bdc3c7; }
     </style>
 </head>
 <body>
@@ -50,6 +61,11 @@
         </div>
     </div>
 
+    <h2 class="titulo-fila">📋 Próximos Times na Fila</h2>
+    <div id="proximosTimesContainer" class="proximos-times-container">
+        <p class="vazio">Aguardando jogadores na fila...</p>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -75,11 +91,12 @@
                 
                 const dados = doc.data();
 
+                // Placar
                 document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
                 document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
 
+                // Status de Jogo
                 const statusJogo = document.getElementById('statusJogo');
-                
                 if (dados.partidaEmAndamento) {
                     statusJogo.innerText = "🏐 Partida em Andamento!";
                     statusJogo.style.color = "#2ecc71";
@@ -91,12 +108,68 @@
                     statusJogo.style.color = "#bdc3c7";
                 }
 
-                const formataJogadores = (time) => {
-                    return time && time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
-                };
-
+                // Times Atuais
+                const formataJogadores = (time) => time && time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
                 document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
                 document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
+
+                // ==========================================
+                // LÓGICA NOVA: PREVISOR DE PRÓXIMOS TIMES
+                // ==========================================
+                
+                // Fazemos uma cópia das filas para não alterar os dados originais enquanto calculamos
+                let expEspera = dados.filaExperientes ? [...dados.filaExperientes] : [];
+                let iniEspera = dados.filaIniciantes ? [...dados.filaIniciantes] : [];
+                
+                let htmlProximos = "";
+                let contadorTime = 1;
+
+                if (expEspera.length === 0 && iniEspera.length === 0) {
+                    htmlProximos = "<p class='vazio'>A fila de espera está vazia no momento.</p>";
+                } else {
+                    // Enquanto houver alguém em qualquer uma das filas, continuamos montando os quadros
+                    while (expEspera.length > 0 || iniEspera.length > 0) {
+                        
+                        // Puxamos até 4 experientes e até 2 iniciantes pra essa leva
+                        let timeExp = expEspera.splice(0, 4);
+                        let timeIni = iniEspera.splice(0, 2);
+
+                        let listaHTML = "";
+
+                        // Preenche as 4 vagas de Experiente
+                        for (let i = 0; i < 4; i++) {
+                            if (timeExp[i]) {
+                                listaHTML += `<span class="exp">• ${timeExp[i].nome} (Exp)</span><br>`;
+                            } else {
+                                listaHTML += `<span class="vazio">• Aguardando Experiente...</span><br>`;
+                            }
+                        }
+
+                        // Preenche as 2 vagas de Iniciante
+                        for (let i = 0; i < 2; i++) {
+                            if (timeIni[i]) {
+                                listaHTML += `<span class="ini">• ${timeIni[i].nome} (Ini)</span><br>`;
+                            } else {
+                                listaHTML += `<span class="vazio">• Aguardando Iniciante...</span><br>`;
+                            }
+                        }
+
+                        // Constrói a caixinha visual desse time
+                        htmlProximos += `
+                            <div class="proximo-time-box">
+                                <h4>Próximo Time ${contadorTime}</h4>
+                                <div class="lista-nomes-quadra">
+                                    ${listaHTML}
+                                </div>
+                            </div>
+                        `;
+                        contadorTime++;
+                    }
+                }
+                
+                // Joga o visual gerado na tela
+                document.getElementById('proximosTimesContainer').innerHTML = htmlProximos;
+
             } else {
                 statusLabel.innerText = "🔴 Aguardando o Juiz criar a primeira partida...";
                 statusLabel.style.color = "#e74c3c";
