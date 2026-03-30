@@ -113,11 +113,7 @@
                 document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
                 document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
 
-                // ==========================================
-                // LÓGICA NOVA: PREVISOR DE PRÓXIMOS TIMES
-                // ==========================================
-                
-                // Fazemos uma cópia das filas para não alterar os dados originais enquanto calculamos
+                // LÓGICA DO PREVISOR DE PRÓXIMOS TIMES
                 let expEspera = dados.filaExperientes ? [...dados.filaExperientes] : [];
                 let iniEspera = dados.filaIniciantes ? [...dados.filaIniciantes] : [];
                 
@@ -127,34 +123,31 @@
                 if (expEspera.length === 0 && iniEspera.length === 0) {
                     htmlProximos = "<p class='vazio'>A fila de espera está vazia no momento.</p>";
                 } else {
-                    // Enquanto houver alguém em qualquer uma das filas, continuamos montando os quadros
                     while (expEspera.length > 0 || iniEspera.length > 0) {
                         
-                        // Puxamos até 4 experientes e até 2 iniciantes pra essa leva
                         let timeExp = expEspera.splice(0, 4);
                         let timeIni = iniEspera.splice(0, 2);
 
                         let listaHTML = "";
 
-                        // Preenche as 4 vagas de Experiente
+                        // Preenche as vagas de Experiente (sem o texto (Exp))
                         for (let i = 0; i < 4; i++) {
                             if (timeExp[i]) {
-                                listaHTML += `<span class="exp">• ${timeExp[i].nome} (Exp)</span><br>`;
+                                listaHTML += `<span class="exp">• ${timeExp[i].nome}</span><br>`;
                             } else {
                                 listaHTML += `<span class="vazio">• Aguardando Experiente...</span><br>`;
                             }
                         }
 
-                        // Preenche as 2 vagas de Iniciante
+                        // Preenche as vagas de Iniciante (sem o texto (Ini))
                         for (let i = 0; i < 2; i++) {
                             if (timeIni[i]) {
-                                listaHTML += `<span class="ini">• ${timeIni[i].nome} (Ini)</span><br>`;
+                                listaHTML += `<span class="ini">• ${timeIni[i].nome}</span><br>`;
                             } else {
                                 listaHTML += `<span class="vazio">• Aguardando Iniciante...</span><br>`;
                             }
                         }
 
-                        // Constrói a caixinha visual desse time
                         htmlProximos += `
                             <div class="proximo-time-box">
                                 <h4>Próximo Time ${contadorTime}</h4>
@@ -167,7 +160,6 @@
                     }
                 }
                 
-                // Joga o visual gerado na tela
                 document.getElementById('proximosTimesContainer').innerHTML = htmlProximos;
 
             } else {
