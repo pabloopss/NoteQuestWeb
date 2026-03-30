@@ -46,7 +46,7 @@
         <h2>Partida Atual</h2>
         <div class="placar">
             <div class="time-box">
-                <div>Time A (Rei)</div>
+                <div>Time A</div>
                 <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
                 <div class="controles-ponto">
                     <button onclick="marcarPonto('A')" class="btn-success" id="btnPontoA" disabled>+ Ponto</button>
@@ -54,7 +54,7 @@
                 </div>
             </div>
             <div class="time-box">
-                <div>Time B (Desafiante)</div>
+                <div>Time B</div>
                 <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
                 <div class="controles-ponto">
                     <button onclick="marcarPonto('B')" class="btn-success" id="btnPontoB" disabled>+ Ponto</button>
@@ -190,7 +190,9 @@
 
         function tentarFormarTimes() {
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
+                // Preenche o A se estiver vazio
                 if (timeA.length === 0) timeA = puxarJogadoresParaTime();
+                // Preenche o B se estiver vazio e ainda tiver gente na fila
                 if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                     timeB = puxarJogadoresParaTime();
                 }
@@ -255,38 +257,39 @@
         function finalizarPartida() {
             if (!partidaEmAndamento) return alert("A partida ainda não foi iniciada.");
 
-            // LÓGICA NOVA: Caixa de confirmação de segurança
-            const confirmacao = confirm("Tem certeza que deseja encerrar a partida?\nO vencedor será mantido na quadra e o perdedor irá para o fim da fila de espera.");
+            const confirmacao = confirm("Tem certeza que deseja encerrar a partida?\nO vencedor será mantido na sua respectiva quadra e o perdedor irá para o fim da fila de espera.");
             
             if (!confirmacao) {
-                return; // Se o juiz clicar em Cancelar, o código para aqui e nada acontece
+                return; 
             }
 
-            let vencedor, perdedor, nomeVencedor;
+            let nomeVencedor;
             
+            // LÓGICA NOVA: O vencedor fica, o perdedor esvazia
             if (pontos.A > pontos.B) { 
-                vencedor = timeA; 
-                perdedor = timeB; 
-                nomeVencedor = "Rei da Quadra (Time A)";
+                nomeVencedor = "Time A";
+                // Devolve o Time B pra fila
+                timeB.forEach(jogador => {
+                    if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                    else filaIniciantes.push(jogador);
+                });
+                timeB = []; // Esvazia o lado B
             } 
             else if (pontos.B > pontos.A) { 
-                vencedor = timeB; 
-                perdedor = timeA; 
-                nomeVencedor = "Desafiante (Time B)";
+                nomeVencedor = "Time B";
+                // Devolve o Time A pra fila
+                timeA.forEach(jogador => {
+                    if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                    else filaIniciantes.push(jogador);
+                });
+                timeA = []; // Esvazia o lado A
             } 
             else {
                 return alert("Jogo empatado! Marque um ponto para definir o vencedor antes de encerrar.");
             }
 
-            perdedor.forEach(jogador => {
-                if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
-                else filaIniciantes.push(jogador);
-            });
-
             mensagemVencedor = `🏆 O ${nomeVencedor} venceu a partida!`;
 
-            timeA = vencedor;
-            timeB = []; 
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
 
