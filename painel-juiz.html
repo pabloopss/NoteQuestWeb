@@ -11,22 +11,28 @@
         .form-group { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
         input { flex: 1; min-width: 150px; }
-        button { background-color: #3498db; color: white; border: none; cursor: pointer; width: 100%; font-weight: bold; }
-        button:hover { background-color: #2980b9; }
+        
+        button { color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 5px; }
+        .btn-primary { background-color: #3498db; }
+        .btn-primary:hover { background-color: #2980b9; }
         .btn-danger { background-color: #e74c3c; }
         .btn-success { background-color: #2ecc71; }
+        .btn-warning { background-color: #f39c12; }
+        
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
+        .controles-ponto { display: flex; gap: 5px; }
+        
         ul { list-style-type: none; padding: 0; }
         li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
-        .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; }
-        #statusConexao { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px; color: green; }
+        .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
+        #statusConexao { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
     </style>
 </head>
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
-    <div id="statusConexao">Sincronizando com a quadra...</div>
+    <div id="statusConexao">🟡 Tentando conectar ao banco de dados...</div>
 
     <div class="card">
         <h2>Adicionar Jogador</h2>
@@ -37,7 +43,7 @@
                 <option value="iniciante">Iniciante</option>
             </select>
         </div>
-        <button onclick="adicionarJogador()">Adicionar à Fila</button>
+        <button class="btn-primary" onclick="adicionarJogador()">Adicionar à Fila</button>
     </div>
 
     <div class="card">
@@ -46,12 +52,18 @@
             <div class="time-box">
                 <div>Time A (Rei)</div>
                 <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
-                <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
+                <div class="controles-ponto">
+                    <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
+                    <button onclick="removerPonto('A')" class="btn-warning">- Ponto</button>
+                </div>
             </div>
             <div class="time-box">
                 <div>Time B (Desafiante)</div>
                 <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
-                <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
+                <div class="controles-ponto">
+                    <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
+                    <button onclick="removerPonto('B')" class="btn-warning">- Ponto</button>
+                </div>
             </div>
         </div>
         <button onclick="finalizarPartida()" class="btn-danger">Finalizar Partida</button>
@@ -63,7 +75,7 @@
 
     <div class="card">
         <h2>Filas de Espera</h2>
-        <button onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
+        <button class="btn-primary" onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
         
         <h3>Experientes (<span id="countExp">0</span>)</h3>
         <ul id="listaExperientes"></ul>
@@ -76,14 +88,14 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // 1. SUA CONFIGURAÇÃO
+        // 1. SUA CONFIGURAÇÃO (COLOQUE SEUS DADOS REAIS AQUI)
         const firebaseConfig = {
             apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- PREENCHA
-            projectId: "SEU_PROJETO",                 // <-- PREENCHA
-            storageBucket: "SEU_PROJETO.appspot.com",   // <-- PREENCHA
-            messagingSenderId: "SEU_ID",              // <-- PREENCHA
-            appId: "SEU_APP_ID"                       // <-- PREENCHA
+            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- IMPORTANTE PREENCHER
+            projectId: "SEU_PROJETO",                 // <-- IMPORTANTE PREENCHER
+            storageBucket: "SEU_PROJETO.appspot.com",   // <-- IMPORTANTE PREENCHER
+            messagingSenderId: "SEU_ID",              // <-- IMPORTANTE PREENCHER
+            appId: "SEU_APP_ID"                       // <-- IMPORTANTE PREENCHER
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -96,7 +108,7 @@
         let timeB = []; 
         let pontos = { A: 0, B: 0 };
 
-        // 3. INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+        // 3. INICIAR SINCRONIZAÇÃO AUTOMÁTICA E TRATAMENTO DE ERROS
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             if (doc.exists) {
                 const dados = doc.data();
@@ -106,8 +118,19 @@
                 timeB = dados.timeB || [];
                 pontos = dados.pontos || { A: 0, B: 0 };
                 atualizarTela();
-                document.getElementById('statusConexao').innerText = "🟢 Sincronizado e Online";
+                
+                const status = document.getElementById('statusConexao');
+                status.innerText = "🟢 Sincronizado e Online";
+                status.style.color = "green";
+            } else {
+                // Se o documento não existir ainda (primeira vez), nós forçamos a criação dele
+                salvarNoFirestore();
             }
+        }, (error) => {
+            // Se der erro na configuração ou nas regras do Firebase, ele avisa aqui!
+            const status = document.getElementById('statusConexao');
+            status.innerText = "🔴 Erro de Conexão: " + error.message;
+            status.style.color = "red";
         });
 
         // 4. FUNÇÃO DE SALVAR NO BANCO
@@ -118,10 +141,14 @@
                 timeA: timeA,
                 timeB: timeB,
                 pontos: pontos
-            }).catch(error => alert("Erro ao salvar: " + error.message));
+            }).catch(error => {
+                const status = document.getElementById('statusConexao');
+                status.innerText = "🔴 Falha ao salvar: " + error.message;
+                status.style.color = "red";
+            });
         }
 
-        // 5. LÓGICA DO JOGO
+        // 5. LÓGICA DO JOGO (Agora com Remover Ponto)
         function adicionarJogador() {
             const nomeInput = document.getElementById('nomeJogador');
             const nivel = document.getElementById('nivelJogador').value;
@@ -136,12 +163,14 @@
 
             nomeInput.value = ""; 
             salvarNoFirestore();
+            atualizarTela(); // Força atualização visual imediata
         }
 
         function removerDaFila(id, nivel) {
             if (nivel === 'experiente') filaExperientes = filaExperientes.filter(j => j.id !== id);
             else filaIniciantes = filaIniciantes.filter(j => j.id !== id);
             salvarNoFirestore();
+            atualizarTela();
         }
 
         function tentarFormarTimes() {
@@ -151,6 +180,7 @@
                     timeB = puxarJogadoresParaTime();
                 }
                 salvarNoFirestore();
+                atualizarTela();
             } else {
                 alert("Necessário 4 experientes e 2 iniciantes na fila.");
             }
@@ -165,6 +195,16 @@
         function marcarPonto(time) {
             pontos[time]++;
             salvarNoFirestore();
+            atualizarTela();
+        }
+
+        // --- NOVA FUNÇÃO: REMOVER PONTO ---
+        function removerPonto(time) {
+            if (pontos[time] > 0) { // Não deixa a pontuação ficar negativa
+                pontos[time]--;
+                salvarNoFirestore();
+                atualizarTela();
+            }
         }
 
         function finalizarPartida() {
@@ -173,7 +213,7 @@
             let vencedor, perdedor;
             if (pontos.A > pontos.B) { vencedor = timeA; perdedor = timeB; } 
             else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
-            else return alert("Jogo empatado!");
+            else return alert("Jogo empatado! Por favor, marque um ponto para definir o vencedor.");
 
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
@@ -187,10 +227,11 @@
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                 timeB = puxarJogadoresParaTime();
             } else {
-                alert("Vencedor na quadra, mas faltam jogadores para o próximo desafio.");
+                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila para o próximo desafio.");
             }
 
             salvarNoFirestore();
+            atualizarTela();
         }
 
         // 6. ATUALIZAÇÃO DA TELA
