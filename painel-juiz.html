@@ -20,7 +20,7 @@
         .btn-success { background-color: #2ecc71; }
         .btn-warning { background-color: #f39c12; }
         .btn-start { background-color: #9b59b6; margin-bottom: 15px;}
-        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } /* Estilo novo para o botão de desmontar */
+        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } 
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
@@ -206,7 +206,6 @@
             return exp.concat(ini);
         }
 
-        // NOVO: Função para devolver um time inteiro para as filas
         function desmontarTime(qualTime) {
             if (partidaEmAndamento) {
                 return alert("Você não pode desmontar um time durante uma partida!");
@@ -218,13 +217,11 @@
                 return alert("Este time já está vazio.");
             }
 
-            // O push devolve para o FINAL das filas
             timeAlvo.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            // Limpa o time que foi desmontado
             if (qualTime === 'A') timeA = [];
             else timeB = [];
 
@@ -258,6 +255,13 @@
         function finalizarPartida() {
             if (!partidaEmAndamento) return alert("A partida ainda não foi iniciada.");
 
+            // LÓGICA NOVA: Caixa de confirmação de segurança
+            const confirmacao = confirm("Tem certeza que deseja encerrar a partida?\nO vencedor será mantido na quadra e o perdedor irá para o fim da fila de espera.");
+            
+            if (!confirmacao) {
+                return; // Se o juiz clicar em Cancelar, o código para aqui e nada acontece
+            }
+
             let vencedor, perdedor, nomeVencedor;
             
             if (pontos.A > pontos.B) { 
@@ -271,25 +275,20 @@
                 nomeVencedor = "Desafiante (Time B)";
             } 
             else {
-                return alert("Jogo empatado! Marque um ponto para definir o vencedor.");
+                return alert("Jogo empatado! Marque um ponto para definir o vencedor antes de encerrar.");
             }
 
-            // Devolve os perdedores para o fim da fila
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            mensagemVencedor = `O ${nomeVencedor} venceu a partida!`;
+            mensagemVencedor = `🏆 O ${nomeVencedor} venceu a partida!`;
 
-            // O vencedor sempre fica na quadra como Time A (Rei da Quadra)
             timeA = vencedor;
-            timeB = []; // O desafiante fica vazio esperando
+            timeB = []; 
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
-
-            // REMOVIDO: A função automática de puxar o próximo time sumiu daqui. 
-            // Agora o juiz decide quando puxar apertando o botão.
 
             salvarNoFirestore();
         }
@@ -312,22 +311,22 @@
             const btnFormarTimes = document.getElementById('btnFormarTimes');
             const btnIniciar = document.getElementById('btnIniciarPartida');
             const btnFinalizar = document.getElementById('btnFinalizarPartida');
-            const btnDesmontarA = document.getElementById('btnDesmontarA'); // Controle do botão desmontar
-            const btnDesmontarB = document.getElementById('btnDesmontarB'); // Controle do botão desmontar
+            const btnDesmontarA = document.getElementById('btnDesmontarA'); 
+            const btnDesmontarB = document.getElementById('btnDesmontarB'); 
             const botoesPonto = ['btnPontoA', 'btnMenosPontoA', 'btnPontoB', 'btnMenosPontoB'];
 
             if (partidaEmAndamento) {
                 btnFormarTimes.disabled = true;
                 btnIniciar.disabled = true;
                 btnFinalizar.disabled = false;
-                btnDesmontarA.disabled = true; // Trava desmontar durante o jogo
-                btnDesmontarB.disabled = true; // Trava desmontar durante o jogo
+                btnDesmontarA.disabled = true; 
+                btnDesmontarB.disabled = true; 
                 botoesPonto.forEach(id => document.getElementById(id).disabled = false);
             } else {
                 btnFormarTimes.disabled = false;
                 btnFinalizar.disabled = true;
-                btnDesmontarA.disabled = false; // Libera desmontar fora do jogo
-                btnDesmontarB.disabled = false; // Libera desmontar fora do jogo
+                btnDesmontarA.disabled = false; 
+                btnDesmontarB.disabled = false; 
                 botoesPonto.forEach(id => document.getElementById(id).disabled = true);
                 
                 if (timeA.length === 6 && timeB.length === 6) {
