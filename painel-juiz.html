@@ -104,7 +104,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // --- CONFIGURAÇÃO EXATA DO SEU PROJETO ---
         const firebaseConfig = {
             apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
             authDomain: "notequestweb.firebaseapp.com",
@@ -114,38 +113,36 @@
             appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
         };
 
-        // Inicializa o Firebase e o Banco de Dados
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Variáveis Locais
         let filaExperientes = [];
         let filaIniciantes = [];
         let timeA = []; 
         let timeB = []; 
         let pontos = { A: 0, B: 0 };
         let partidaEmAndamento = false;
+        let mensagemVencedor = ""; // NOVA VARIÁVEL: Guarda quem venceu o jogo passado
 
-        // --- CONEXÃO EM TEMPO REAL ---
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             const status = document.getElementById('statusConexao');
             
             if (doc.exists) {
                 const dados = doc.data();
-                // Preenche as variáveis com os dados do banco
                 filaExperientes = dados.filaExperientes || [];
                 filaIniciantes = dados.filaIniciantes || [];
                 timeA = dados.timeA || [];
                 timeB = dados.timeB || [];
                 pontos = dados.pontos || { A: 0, B: 0 };
                 partidaEmAndamento = dados.partidaEmAndamento || false;
+                mensagemVencedor = dados.mensagemVencedor || ""; // Puxa do banco
                 
                 atualizarTela(); 
                 
                 status.innerText = "🟢 Sincronizado e Online (Lista Salva)";
                 status.style.color = "green";
             } else {
-                salvarNoFirestore(); // Cria o documento na primeira vez
+                salvarNoFirestore(); 
             }
         }, (error) => {
             const status = document.getElementById('statusConexao');
@@ -153,21 +150,21 @@
             status.style.color = "red";
         });
 
-        // --- SALVAR NO BANCO ---
         function salvarNoFirestore() {
+            // ADICIONADO: Envia a mensagem do vencedor pro banco de dados
             db.collection('volei').doc('partidaAtual').set({
                 filaExperientes: filaExperientes,
                 filaIniciantes: filaIniciantes,
                 timeA: timeA,
                 timeB: timeB,
                 pontos: pontos,
-                partidaEmAndamento: partidaEmAndamento
+                partidaEmAndamento: partidaEmAndamento,
+                mensagemVencedor: mensagemVencedor
             }).catch(error => {
                 console.error("Erro ao salvar:", error);
             });
         }
 
-        // --- LÓGICA DO JOGO ---
         function adicionarJogador() {
             const nomeInput = document.getElementById('nomeJogador');
             const nivel = document.getElementById('nivelJogador').value;
@@ -197,7 +194,7 @@
                 }
                 salvarNoFirestore();
             } else {
-                alert("Necessário 4 experientes e 2 iniciantes na fila.");
+                alert("Necessário pelo menos 4 experientes e 2 iniciantes para formar um time.");
             }
         }
 
@@ -210,6 +207,7 @@
         function iniciarPartida() {
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
+                mensagemVencedor = ""; // LÓGICA NOVA: Limpa a mensagem de vitória da tela ao vivo
                 salvarNoFirestore();
             } else {
                 alert("Você precisa formar os dois times completos antes de iniciar.");
@@ -233,54 +231,61 @@
         function finalizarPartida() {
             if (!partidaEmAndamento) return alert("A partida ainda não foi iniciada.");
 
-            let vencedor, perdedor;
-            if (pontos.A > pontos.B) { vencedor = timeA; perdedor = timeB; } 
-            else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
-            else return alert("Jogo empatado! Marque um ponto para definir o vencedor.");
+            let vencedor, perdedor, nomeVencedor;
+            
+            // LÓGICA NOVA: Define quem ganha, quem perde e a mensagem
+            if (pontos.A > pontos.B) { 
+                vencedor = timeA; 
+                perdedor = timeB; 
+                nomeVencedor = "Rei da Quadra (Time A)";
+            } 
+            else if (pontos.B > pontos.A) { 
+                vencedor = timeB; 
+                perdedor = timeA; 
+                nomeVencedor = "Desafiante (Time B)";
+            } 
+            else {
+                return alert("Jogo empatado! Marque um ponto para definir o vencedor.");
+            }
 
-            // Perdedor para o fim da fila
+            // O comando push() garante que o jogador vá para o FINAL da fila
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            // Vencedor continua
+            // LÓGICA NOVA: Cria a mensagem de vitória
+            mensagemVencedor = `O ${nomeVencedor} venceu a partida!`;
+
             timeA = vencedor;
             timeB = [];
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
 
-            // Puxa próximo time se possível
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                 timeB = puxarJogadoresParaTime();
             } else {
-                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila.");
+                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila para o próximo desafio.");
             }
 
             salvarNoFirestore();
         }
 
-        // --- ATUALIZAÇÃO DA TELA (Renderização Visual) ---
         function atualizarTela() {
-            // Atualiza Placar
             document.getElementById('pontosA').innerText = pontos.A;
             document.getElementById('pontosB').innerText = pontos.B;
 
-            // Formata nomes nas colunas
             const formataTime = (time) => time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
             document.getElementById('listaTimeA').innerHTML = formataTime(timeA);
             document.getElementById('listaTimeB').innerHTML = formataTime(timeB);
 
-            // Contadores
             document.getElementById('countExp').innerText = filaExperientes.length;
             document.getElementById('countIni').innerText = filaIniciantes.length;
 
-            // Listas
             const renderJogador = (jogador) => `<li>${jogador.nome} <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button></li>`;
             document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
             document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
 
-            // Controle de Botões (Trava)
             const btnFormarTimes = document.getElementById('btnFormarTimes');
             const btnIniciar = document.getElementById('btnIniciarPartida');
             const btnFinalizar = document.getElementById('btnFinalizarPartida');
@@ -296,7 +301,6 @@
                 btnFinalizar.disabled = true;
                 botoesPonto.forEach(id => document.getElementById(id).disabled = true);
                 
-                // Só libera "Iniciar Partida" se tiver 6 x 6
                 if (timeA.length === 6 && timeB.length === 6) {
                     btnIniciar.disabled = false;
                 } else {
