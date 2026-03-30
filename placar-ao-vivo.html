@@ -54,21 +54,21 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // 1. SUA CONFIGURAÇÃO AQUI DENTRO (Não use arquivo externo por enquanto)
+        // --- CONFIGURAÇÃO EXATA DO SEU PROJETO ---
         const firebaseConfig = {
-              apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-  authDomain: "notequestweb.firebaseapp.com",
-  projectId: "notequestweb",
-  storageBucket: "notequestweb.firebasestorage.app",
-  messagingSenderId: "1062376453055",
-  appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
+            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
+            authDomain: "notequestweb.firebaseapp.com",
+            projectId: "notequestweb",
+            storageBucket: "notequestweb.firebasestorage.app",
+            messagingSenderId: "1062376453055",
+            appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
         };
 
         // Inicializa o Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // 2. Lógica de Tempo Real
+        // --- LÓGICA DE TEMPO REAL ---
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             const statusLabel = document.getElementById('status');
             
@@ -92,7 +92,7 @@
                     statusJogo.style.color = "#f1c40f";
                 }
 
-                // Atualiza Nomes dos Jogadores
+                // Atualiza Nomes dos Jogadores em colunas
                 const formataJogadores = (time) => {
                     return time && time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
                 };
