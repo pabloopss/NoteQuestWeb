@@ -9,7 +9,7 @@
         h1 { color: #f1c40f; margin-bottom: 5px; }
         .placar-container { display: flex; justify-content: space-around; background: #34495e; padding: 20px; border-radius: 10px; margin-top: 20px; }
         .time-box { flex: 1; margin: 0 10px; }
-        .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; }
+        .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; font-weight: bold; }
         .pontos { font-size: 80px; font-weight: bold; margin: 10px 0; color: #ecf0f1; }
         
         .jogadores-quadra-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
@@ -30,11 +30,11 @@
 
     <div class="placar-container">
         <div class="time-box">
-            <div class="nome-time">Rei da Quadra</div>
+            <div class="nome-time">Time A</div>
             <div id="pontosA" class="pontos">0</div>
         </div>
         <div class="time-box">
-            <div class="nome-time">Desafiante</div>
+            <div class="nome-time">Time B</div>
             <div id="pontosB" class="pontos">0</div>
         </div>
     </div>
@@ -80,12 +80,10 @@
 
                 const statusJogo = document.getElementById('statusJogo');
                 
-                // LÓGICA DE EXIBIÇÃO DO VENCEDOR / ANDAMENTO
                 if (dados.partidaEmAndamento) {
                     statusJogo.innerText = "🏐 Partida em Andamento!";
                     statusJogo.style.color = "#2ecc71";
                 } else if (dados.mensagemVencedor && dados.mensagemVencedor !== "") {
-                    // Aparece gigante na tela quando tem vencedor
                     statusJogo.innerText = dados.mensagemVencedor + " (Aguardando próxima partida...)";
                     statusJogo.style.color = "#f1c40f"; 
                 } else {
