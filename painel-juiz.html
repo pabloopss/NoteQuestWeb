@@ -20,14 +20,15 @@
         .btn-success { background-color: #2ecc71; }
         .btn-warning { background-color: #f39c12; }
         .btn-start { background-color: #9b59b6; margin-bottom: 15px;}
+        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } /* Estilo novo para o botão de desmontar */
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
         .controles-ponto { display: flex; gap: 5px; }
         
         .jogadores-quadra-container { display: flex; gap: 10px; margin-top: 15px; }
-        .jogadores-coluna { flex: 1; background: #ecf0f1; padding: 10px; border-radius: 8px; }
-        .jogadores-coluna h4 { margin-top: 0; text-align: center; color: #2980b9; }
+        .jogadores-coluna { flex: 1; background: #ecf0f1; padding: 10px; border-radius: 8px; text-align: center; }
+        .jogadores-coluna h4 { margin-top: 0; color: #2980b9; }
         .lista-nomes-quadra { font-size: 14px; line-height: 1.6; text-align: left; padding-left: 10px; }
 
         ul { list-style-type: none; padding: 0; }
@@ -69,10 +70,12 @@
             <div class="jogadores-coluna">
                 <h4>Time A</h4>
                 <div id="listaTimeA" class="lista-nomes-quadra">Vazio</div>
+                <button onclick="desmontarTime('A')" class="btn-warning btn-small" id="btnDesmontarA">Desmontar Time A</button>
             </div>
             <div class="jogadores-coluna">
                 <h4>Time B</h4>
                 <div id="listaTimeB" class="lista-nomes-quadra">Vazio</div>
+                <button onclick="desmontarTime('B')" class="btn-warning btn-small" id="btnDesmontarB">Desmontar Time B</button>
             </div>
         </div>
     </div>
@@ -122,7 +125,7 @@
         let timeB = []; 
         let pontos = { A: 0, B: 0 };
         let partidaEmAndamento = false;
-        let mensagemVencedor = ""; // NOVA VARIÁVEL: Guarda quem venceu o jogo passado
+        let mensagemVencedor = ""; 
 
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             const status = document.getElementById('statusConexao');
@@ -135,7 +138,7 @@
                 timeB = dados.timeB || [];
                 pontos = dados.pontos || { A: 0, B: 0 };
                 partidaEmAndamento = dados.partidaEmAndamento || false;
-                mensagemVencedor = dados.mensagemVencedor || ""; // Puxa do banco
+                mensagemVencedor = dados.mensagemVencedor || "";
                 
                 atualizarTela(); 
                 
@@ -151,7 +154,6 @@
         });
 
         function salvarNoFirestore() {
-            // ADICIONADO: Envia a mensagem do vencedor pro banco de dados
             db.collection('volei').doc('partidaAtual').set({
                 filaExperientes: filaExperientes,
                 filaIniciantes: filaIniciantes,
@@ -194,7 +196,7 @@
                 }
                 salvarNoFirestore();
             } else {
-                alert("Necessário pelo menos 4 experientes e 2 iniciantes para formar um time.");
+                alert("Necessário pelo menos 4 experientes e 2 iniciantes na fila para formar um time.");
             }
         }
 
@@ -204,10 +206,35 @@
             return exp.concat(ini);
         }
 
+        // NOVO: Função para devolver um time inteiro para as filas
+        function desmontarTime(qualTime) {
+            if (partidaEmAndamento) {
+                return alert("Você não pode desmontar um time durante uma partida!");
+            }
+
+            let timeAlvo = (qualTime === 'A') ? timeA : timeB;
+
+            if (timeAlvo.length === 0) {
+                return alert("Este time já está vazio.");
+            }
+
+            // O push devolve para o FINAL das filas
+            timeAlvo.forEach(jogador => {
+                if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                else filaIniciantes.push(jogador);
+            });
+
+            // Limpa o time que foi desmontado
+            if (qualTime === 'A') timeA = [];
+            else timeB = [];
+
+            salvarNoFirestore();
+        }
+
         function iniciarPartida() {
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
-                mensagemVencedor = ""; // LÓGICA NOVA: Limpa a mensagem de vitória da tela ao vivo
+                mensagemVencedor = ""; 
                 salvarNoFirestore();
             } else {
                 alert("Você precisa formar os dois times completos antes de iniciar.");
@@ -233,7 +260,6 @@
 
             let vencedor, perdedor, nomeVencedor;
             
-            // LÓGICA NOVA: Define quem ganha, quem perde e a mensagem
             if (pontos.A > pontos.B) { 
                 vencedor = timeA; 
                 perdedor = timeB; 
@@ -248,25 +274,22 @@
                 return alert("Jogo empatado! Marque um ponto para definir o vencedor.");
             }
 
-            // O comando push() garante que o jogador vá para o FINAL da fila
+            // Devolve os perdedores para o fim da fila
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            // LÓGICA NOVA: Cria a mensagem de vitória
             mensagemVencedor = `O ${nomeVencedor} venceu a partida!`;
 
+            // O vencedor sempre fica na quadra como Time A (Rei da Quadra)
             timeA = vencedor;
-            timeB = [];
+            timeB = []; // O desafiante fica vazio esperando
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
 
-            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                timeB = puxarJogadoresParaTime();
-            } else {
-                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila para o próximo desafio.");
-            }
+            // REMOVIDO: A função automática de puxar o próximo time sumiu daqui. 
+            // Agora o juiz decide quando puxar apertando o botão.
 
             salvarNoFirestore();
         }
@@ -289,16 +312,22 @@
             const btnFormarTimes = document.getElementById('btnFormarTimes');
             const btnIniciar = document.getElementById('btnIniciarPartida');
             const btnFinalizar = document.getElementById('btnFinalizarPartida');
+            const btnDesmontarA = document.getElementById('btnDesmontarA'); // Controle do botão desmontar
+            const btnDesmontarB = document.getElementById('btnDesmontarB'); // Controle do botão desmontar
             const botoesPonto = ['btnPontoA', 'btnMenosPontoA', 'btnPontoB', 'btnMenosPontoB'];
 
             if (partidaEmAndamento) {
                 btnFormarTimes.disabled = true;
                 btnIniciar.disabled = true;
                 btnFinalizar.disabled = false;
+                btnDesmontarA.disabled = true; // Trava desmontar durante o jogo
+                btnDesmontarB.disabled = true; // Trava desmontar durante o jogo
                 botoesPonto.forEach(id => document.getElementById(id).disabled = false);
             } else {
                 btnFormarTimes.disabled = false;
                 btnFinalizar.disabled = true;
+                btnDesmontarA.disabled = false; // Libera desmontar fora do jogo
+                btnDesmontarB.disabled = false; // Libera desmontar fora do jogo
                 botoesPonto.forEach(id => document.getElementById(id).disabled = true);
                 
                 if (timeA.length === 6 && timeB.length === 6) {
