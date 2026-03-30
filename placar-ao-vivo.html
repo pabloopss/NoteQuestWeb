@@ -12,7 +12,6 @@
         .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; }
         .pontos { font-size: 80px; font-weight: bold; margin: 10px 0; color: #ecf0f1; }
         
-        /* Estilo das colunas de jogadores no Ao Vivo */
         .jogadores-quadra-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
         .jogadores-coluna { flex: 1; background: #1a252f; padding: 15px; border-radius: 8px; min-width: 140px; }
         .jogadores-coluna h3 { margin-top: 0; color: #3498db; }
@@ -54,7 +53,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // --- CONFIGURAÇÃO EXATA DO SEU PROJETO ---
         const firebaseConfig = {
             apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
             authDomain: "notequestweb.firebaseapp.com",
@@ -64,11 +62,9 @@
             appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
         };
 
-        // Inicializa o Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- LÓGICA DE TEMPO REAL ---
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             const statusLabel = document.getElementById('status');
             
@@ -78,21 +74,23 @@
                 
                 const dados = doc.data();
 
-                // Atualiza Placar
                 document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
                 document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
 
-                // Informa se o jogo tá rolando ou pausado
+                // LÓGICA NOVA: Verifica se há um vencedor ou se o jogo está rolando
                 const statusJogo = document.getElementById('statusJogo');
                 if (dados.partidaEmAndamento) {
                     statusJogo.innerText = "🏐 Partida em Andamento!";
                     statusJogo.style.color = "#2ecc71";
+                } else if (dados.mensagemVencedor && dados.mensagemVencedor !== "") {
+                    // Se o jogo acabou e tem um vencedor salvo
+                    statusJogo.innerText = "🏆 " + dados.mensagemVencedor + " Aguardando próxima...";
+                    statusJogo.style.color = "#f39c12"; // Dourado/Laranja
                 } else {
                     statusJogo.innerText = "⏸️ Aguardando Início da Partida...";
                     statusJogo.style.color = "#f1c40f";
                 }
 
-                // Atualiza Nomes dos Jogadores em colunas
                 const formataJogadores = (time) => {
                     return time && time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
                 };
