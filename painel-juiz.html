@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vôlei do Tio Budog - Painel do Juiz</title>
+    <title>Painel do Juiz - Vôlei</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
         h1, h2, h3 { color: #2c3e50; text-align: center; }
@@ -20,144 +20,175 @@
         ul { list-style-type: none; padding: 0; }
         li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
         .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; }
-        #statusConexao { text-align: center; font-size: 12px; color: #7f8c8d; margin-bottom: 10px; }
+        #statusConexao { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        
+        /* Controles de visibilidade para o Login */
+        #painelApp { display: none; } 
+        #painelLogin { display: block; max-width: 300px; margin: 50px auto; }
     </style>
 </head>
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
-    <div id="statusConexao">Conectando ao banco de dados...</div>
+    <div id="statusConexao">Verificando credenciais...</div>
 
-    <div class="card">
-        <h2>Adicionar Jogador</h2>
-        <div class="form-group">
-            <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
-            <select id="nivelJogador">
-                <option value="experiente">Experiente</option>
-                <option value="iniciante">Iniciante</option>
-            </select>
-        </div>
-        <button onclick="adicionarJogador()">Adicionar à Fila</button>
+    <div id="painelLogin" class="card">
+        <h2>Acesso do Mestre</h2>
+        <input type="email" id="emailLogin" placeholder="E-mail" style="width: 100%; margin-bottom: 10px; box-sizing: border-box;">
+        <input type="password" id="senhaLogin" placeholder="Senha" style="width: 100%; margin-bottom: 10px; box-sizing: border-box;">
+        <button onclick="fazerLogin()">Entrar</button>
     </div>
 
-    <div class="card">
-        <h2>Partida Atual</h2>
-        <div class="placar">
-            <div class="time-box">
-                <div>Time A (Rei)</div>
-                <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
-                <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
+    <div id="painelApp">
+        <button onclick="fazerLogout()" class="btn-danger" style="margin-bottom: 15px;">Sair / Logout</button>
+
+        <div class="card">
+            <h2>Adicionar Jogador</h2>
+            <div class="form-group">
+                <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
+                <select id="nivelJogador">
+                    <option value="experiente">Experiente</option>
+                    <option value="iniciante">Iniciante</option>
+                </select>
             </div>
-            <div class="time-box">
-                <div>Time B (Desafiante)</div>
-                <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
-                <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
-            </div>
+            <button onclick="adicionarJogador()">Adicionar à Fila</button>
         </div>
-        <button onclick="finalizarPartida()" class="btn-danger">Finalizar Partida</button>
-        
-        <h3>Jogadores em Quadra</h3>
-        <p><strong>Time A:</strong> <span id="listaTimeA">Nenhum</span></p>
-        <p><strong>Time B:</strong> <span id="listaTimeB">Nenhum</span></p>
-    </div>
 
-    <div class="card">
-        <h2>Filas de Espera</h2>
-        <button onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times Iniciais</button>
-        
-        <h3>Experientes (<span id="countExp">0</span>)</h3>
-        <ul id="listaExperientes"></ul>
+        <div class="card">
+            <h2>Partida Atual</h2>
+            <div class="placar">
+                <div class="time-box">
+                    <div>Time A (Rei)</div>
+                    <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
+                    <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
+                </div>
+                <div class="time-box">
+                    <div>Time B (Desafiante)</div>
+                    <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
+                    <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
+                </div>
+            </div>
+            <button onclick="finalizarPartida()" class="btn-danger">Finalizar Partida</button>
+            
+            <h3>Jogadores em Quadra</h3>
+            <p><strong>Time A:</strong> <span id="listaTimeA">Nenhum</span></p>
+            <p><strong>Time B:</strong> <span id="listaTimeB">Nenhum</span></p>
+        </div>
 
-        <h3>Iniciantes (<span id="countIni">0</span>)</h3>
-        <ul id="listaIniciantes"></ul>
+        <div class="card">
+            <h2>Filas de Espera</h2>
+            <button onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
+            
+            <h3>Experientes (<span id="countExp">0</span>)</h3>
+            <ul id="listaExperientes"></ul>
+
+            <h3>Iniciantes (<span id="countIni">0</span>)</h3>
+            <ul id="listaIniciantes"></ul>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // --- 1. CONFIGURAÇÃO DO FIREBASE (Cole as suas chaves aqui!) ---
+        // 1. SUA CONFIGURAÇÃO
         const firebaseConfig = {
             apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-            authDomain: "SEU_PROJETO.firebaseapp.com",
-            databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
-            projectId: "SEU_PROJETO",
-            storageBucket: "SEU_PROJETO.appspot.com",
-            messagingSenderId: "SEU_ID",
-            appId: "SEU_APP_ID"
+            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- PREENCHA
+            projectId: "SEU_PROJETO",                 // <-- PREENCHA
+            storageBucket: "SEU_PROJETO.appspot.com",   // <-- PREENCHA
+            messagingSenderId: "SEU_ID",              // <-- PREENCHA
+            appId: "SEU_APP_ID"                       // <-- PREENCHA
         };
 
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        // --- 2. ESTADO DO JOGO ---
+        // 2. VARIÁVEIS DO JOGO
         let filaExperientes = [];
         let filaIniciantes = [];
         let timeA = []; 
         let timeB = []; 
         let pontos = { A: 0, B: 0 };
 
-        // --- 3. INICIALIZAÇÃO (Puxando dados salvos no Firebase) ---
-        // Assim que a página abre, ele vai lá no Firebase e vê se já tinha jogo rolando
-        database.ref('partidaAtual').once('value').then((snapshot) => {
-            const dados = snapshot.val();
-            if (dados) {
-                // Se tem dados, nós restauramos as variáveis. O "|| []" garante que não dê erro se a fila estiver vazia.
-                filaExperientes = dados.filaExperientes || [];
-                filaIniciantes = dados.filaIniciantes || [];
-                timeA = dados.timeA || [];
-                timeB = dados.timeB || [];
-                pontos = dados.pontos || { A: 0, B: 0 };
+        // 3. SISTEMA DE LOGIN E AUTENTICAÇÃO
+        auth.onAuthStateChanged((user) => {
+            if (user && user.email === "pabloss.ti@gmail.com") {
+                // Se está logado como Mestre, mostra o App e esconde o Login
+                document.getElementById('painelLogin').style.display = 'none';
+                document.getElementById('painelApp').style.display = 'block';
+                document.getElementById('statusConexao').innerText = "🟢 Logado como Mestre Supremo";
+                document.getElementById('statusConexao').style.color = "green";
+                iniciarSincronizacao(); // Puxa os dados do Firestore
+            } else {
+                // Se não está logado, mostra o Login
+                document.getElementById('painelLogin').style.display = 'block';
+                document.getElementById('painelApp').style.display = 'none';
+                document.getElementById('statusConexao').innerText = "Faça login para controlar o jogo.";
+                document.getElementById('statusConexao').style.color = "#333";
             }
-            document.getElementById('statusConexao').innerText = "🟢 Conectado e Sincronizado";
-            atualizarTela(); // Atualiza o visual com os dados puxados
-        }).catch((erro) => {
-            document.getElementById('statusConexao').innerText = "🔴 Erro ao conectar: " + erro.message;
         });
 
+        function fazerLogin() {
+            const email = document.getElementById('emailLogin').value;
+            const senha = document.getElementById('senhaLogin').value;
+            auth.signInWithEmailAndPassword(email, senha)
+                .catch((error) => alert("Erro no login: " + error.message));
+        }
 
-        // --- 4. FUNÇÃO MÁGICA DE SINCRONIZAÇÃO ---
-        // Toda vez que fizermos uma mudança, chamamos essa função para mandar tudo pro Firebase
-        function salvarNoFirebase() {
-            database.ref('partidaAtual').set({
+        function fazerLogout() {
+            auth.signOut();
+        }
+
+        // 4. SINCRONIZAR DADOS COM FIRESTORE (A MÁGICA)
+        // Usamos onSnapshot para que, se você fechar o site e abrir de novo, ele recupere tudo.
+        function iniciarSincronizacao() {
+            db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const dados = doc.data();
+                    filaExperientes = dados.filaExperientes || [];
+                    filaIniciantes = dados.filaIniciantes || [];
+                    timeA = dados.timeA || [];
+                    timeB = dados.timeB || [];
+                    pontos = dados.pontos || { A: 0, B: 0 };
+                    atualizarTela();
+                }
+            });
+        }
+
+        function salvarNoFirestore() {
+            db.collection('volei').doc('partidaAtual').set({
                 filaExperientes: filaExperientes,
                 filaIniciantes: filaIniciantes,
                 timeA: timeA,
                 timeB: timeB,
                 pontos: pontos
-            });
+            }).catch(error => console.error("Erro ao salvar: ", error));
         }
 
-        // --- 5. LÓGICA DO JOGO (Agora com salvamento) ---
-
+        // 5. LÓGICA DO JOGO
         function adicionarJogador() {
             const nomeInput = document.getElementById('nomeJogador');
             const nivel = document.getElementById('nivelJogador').value;
             const nome = nomeInput.value.trim();
 
-            if (nome === "") return alert("Digite o nome do jogador.");
+            if (nome === "") return alert("Digite o nome.");
 
             const jogador = { nome: nome, nivel: nivel, id: Date.now() };
 
-            if (nivel === 'experiente') {
-                filaExperientes.push(jogador);
-            } else {
-                filaIniciantes.push(jogador);
-            }
+            if (nivel === 'experiente') filaExperientes.push(jogador);
+            else filaIniciantes.push(jogador);
 
             nomeInput.value = ""; 
-            atualizarTela();
-            salvarNoFirebase(); // <--- Manda pro Firebase!
+            salvarNoFirestore();
         }
 
         function removerDaFila(id, nivel) {
-            if (nivel === 'experiente') {
-                filaExperientes = filaExperientes.filter(j => j.id !== id);
-            } else {
-                filaIniciantes = filaIniciantes.filter(j => j.id !== id);
-            }
-            atualizarTela();
-            salvarNoFirebase(); // <--- Manda pro Firebase!
+            if (nivel === 'experiente') filaExperientes = filaExperientes.filter(j => j.id !== id);
+            else filaIniciantes = filaIniciantes.filter(j => j.id !== id);
+            salvarNoFirestore();
         }
 
         function tentarFormarTimes() {
@@ -166,8 +197,7 @@
                 if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                     timeB = puxarJogadoresParaTime();
                 }
-                atualizarTela();
-                salvarNoFirebase(); // <--- Manda pro Firebase!
+                salvarNoFirestore();
             } else {
                 alert("Necessário 4 experientes e 2 iniciantes na fila.");
             }
@@ -181,8 +211,7 @@
 
         function marcarPonto(time) {
             pontos[time]++;
-            atualizarTela();
-            salvarNoFirebase(); // <--- Manda pro Firebase!
+            salvarNoFirestore();
         }
 
         function finalizarPartida() {
@@ -193,29 +222,25 @@
             else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
             else return alert("Jogo empatado!");
 
-            // Perdedor volta pro final da fila
             perdedor.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                 else filaIniciantes.push(jogador);
             });
 
-            // Vencedor vira Time A, placar zera
             timeA = vencedor;
             timeB = [];
             pontos = { A: 0, B: 0 };
 
-            // Puxa novo time
             if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
                 timeB = puxarJogadoresParaTime();
             } else {
                 alert("Vencedor na quadra, mas faltam jogadores para o próximo desafio.");
             }
 
-            atualizarTela();
-            salvarNoFirebase(); // <--- Manda pro Firebase!
+            salvarNoFirestore();
         }
 
-        // --- 6. ATUALIZAÇÃO VISUAL ---
+        // 6. ATUALIZAÇÃO DA TELA (Renderiza os HTMLs com base nas variáveis)
         function atualizarTela() {
             document.getElementById('pontosA').innerText = pontos.A;
             document.getElementById('pontosB').innerText = pontos.B;
