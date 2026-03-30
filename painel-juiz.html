@@ -3,257 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Juiz - Vôlei</title>
+    <title>Ao Vivo - Vôlei do Tio Budog</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
-        h1, h2, h3 { color: #2c3e50; text-align: center; }
-        .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .form-group { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
-        input { flex: 1; min-width: 150px; }
-        
-        button { color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 5px; }
-        .btn-primary { background-color: #3498db; }
-        .btn-primary:hover { background-color: #2980b9; }
-        .btn-danger { background-color: #e74c3c; }
-        .btn-success { background-color: #2ecc71; }
-        .btn-warning { background-color: #f39c12; }
-        
-        .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
-        .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
-        .controles-ponto { display: flex; gap: 5px; }
-        
-        ul { list-style-type: none; padding: 0; }
-        li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
-        .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
-        #statusConexao { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #2c3e50; color: white; text-align: center; }
+        h1 { color: #f1c40f; }
+        .placar-container { display: flex; justify-content: space-around; background: #34495e; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .time-box { flex: 1; margin: 0 10px; }
+        .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; }
+        .pontos { font-size: 80px; font-weight: bold; margin: 10px 0; color: #ecf0f1; }
+        .jogadores-lista { text-align: left; background: #1a252f; padding: 15px; border-radius: 8px; margin-top: 15px; min-height: 100px;}
+        h3 { margin-top: 0; color: #3498db; }
+        #status { font-size: 12px; color: #95a5a6; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
-    <div id="statusConexao">🟡 Tentando conectar ao banco de dados...</div>
+    <div id="status">Conectando à quadra...</div>
+    <p>Acompanhe a partida em tempo real!</p>
 
-    <div class="card">
-        <h2>Adicionar Jogador</h2>
-        <div class="form-group">
-            <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
-            <select id="nivelJogador">
-                <option value="experiente">Experiente</option>
-                <option value="iniciante">Iniciante</option>
-            </select>
+    <div class="placar-container">
+        <div class="time-box">
+            <div class="nome-time">Rei da Quadra</div>
+            <div id="pontosA" class="pontos">0</div>
         </div>
-        <button class="btn-primary" onclick="adicionarJogador()">Adicionar à Fila</button>
+        <div class="time-box">
+            <div class="nome-time">Desafiante</div>
+            <div id="pontosB" class="pontos">0</div>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>Partida Atual</h2>
-        <div class="placar">
-            <div class="time-box">
-                <div>Time A (Rei)</div>
-                <div id="pontosA" style="font-size: 40px; margin: 10px 0;">0</div>
-                <div class="controles-ponto">
-                    <button onclick="marcarPonto('A')" class="btn-success">+ Ponto</button>
-                    <button onclick="removerPonto('A')" class="btn-warning">- Ponto</button>
-                </div>
-            </div>
-            <div class="time-box">
-                <div>Time B (Desafiante)</div>
-                <div id="pontosB" style="font-size: 40px; margin: 10px 0;">0</div>
-                <div class="controles-ponto">
-                    <button onclick="marcarPonto('B')" class="btn-success">+ Ponto</button>
-                    <button onclick="removerPonto('B')" class="btn-warning">- Ponto</button>
-                </div>
-            </div>
+    <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
+        <div class="jogadores-lista" style="flex: 1; min-width: 140px;">
+            <h3>Time A</h3>
+            <div id="listaTimeA">Aguardando...</div>
         </div>
-        <button onclick="finalizarPartida()" class="btn-danger">Finalizar Partida</button>
-        
-        <h3>Jogadores em Quadra</h3>
-        <p><strong>Time A:</strong> <span id="listaTimeA">Nenhum</span></p>
-        <p><strong>Time B:</strong> <span id="listaTimeB">Nenhum</span></p>
-    </div>
-
-    <div class="card">
-        <h2>Filas de Espera</h2>
-        <button class="btn-primary" onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
-        
-        <h3>Experientes (<span id="countExp">0</span>)</h3>
-        <ul id="listaExperientes"></ul>
-
-        <h3>Iniciantes (<span id="countIni">0</span>)</h3>
-        <ul id="listaIniciantes"></ul>
+        <div class="jogadores-lista" style="flex: 1; min-width: 140px;">
+            <h3>Time B</h3>
+            <div id="listaTimeB">Aguardando...</div>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <script>
-        // 1. SUA CONFIGURAÇÃO (COLOQUE SEUS DADOS REAIS AQUI)
-        const firebaseConfig = {
-            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
-            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- IMPORTANTE PREENCHER
-            projectId: "SEU_PROJETO",                 // <-- IMPORTANTE PREENCHER
-            storageBucket: "SEU_PROJETO.appspot.com",   // <-- IMPORTANTE PREENCHER
-            messagingSenderId: "SEU_ID",              // <-- IMPORTANTE PREENCHER
-            appId: "SEU_APP_ID"                       // <-- IMPORTANTE PREENCHER
-        };
+    <script src="firebase.js"></script>
 
-        firebase.initializeApp(firebaseConfig);
+    <script>
         const db = firebase.firestore();
 
-        // 2. VARIÁVEIS DO JOGO
-        let filaExperientes = [];
-        let filaIniciantes = [];
-        let timeA = []; 
-        let timeB = []; 
-        let pontos = { A: 0, B: 0 };
-
-        // 3. INICIAR SINCRONIZAÇÃO AUTOMÁTICA E TRATAMENTO DE ERROS
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
+            document.getElementById('status').innerText = "🟢 Ao Vivo";
+            
             if (doc.exists) {
                 const dados = doc.data();
-                filaExperientes = dados.filaExperientes || [];
-                filaIniciantes = dados.filaIniciantes || [];
-                timeA = dados.timeA || [];
-                timeB = dados.timeB || [];
-                pontos = dados.pontos || { A: 0, B: 0 };
-                atualizarTela();
-                
-                const status = document.getElementById('statusConexao');
-                status.innerText = "🟢 Sincronizado e Online";
-                status.style.color = "green";
+
+                document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
+                document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
+
+                const formataJogadores = (time) => {
+                    return time && time.length > 0 ? time.map(j => j.nome).join('<br>') : "Vazio";
+                };
+
+                document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
+                document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
             } else {
-                // Se o documento não existir ainda (primeira vez), nós forçamos a criação dele
-                salvarNoFirestore();
+                document.getElementById('status').innerText = "Aguardando início do jogo...";
             }
         }, (error) => {
-            // Se der erro na configuração ou nas regras do Firebase, ele avisa aqui!
-            const status = document.getElementById('statusConexao');
-            status.innerText = "🔴 Erro de Conexão: " + error.message;
-            status.style.color = "red";
+            document.getElementById('status').innerText = "🔴 Erro: " + error.message;
         });
-
-        // 4. FUNÇÃO DE SALVAR NO BANCO
-        function salvarNoFirestore() {
-            db.collection('volei').doc('partidaAtual').set({
-                filaExperientes: filaExperientes,
-                filaIniciantes: filaIniciantes,
-                timeA: timeA,
-                timeB: timeB,
-                pontos: pontos
-            }).catch(error => {
-                const status = document.getElementById('statusConexao');
-                status.innerText = "🔴 Falha ao salvar: " + error.message;
-                status.style.color = "red";
-            });
-        }
-
-        // 5. LÓGICA DO JOGO (Agora com Remover Ponto)
-        function adicionarJogador() {
-            const nomeInput = document.getElementById('nomeJogador');
-            const nivel = document.getElementById('nivelJogador').value;
-            const nome = nomeInput.value.trim();
-
-            if (nome === "") return alert("Digite o nome.");
-
-            const jogador = { nome: nome, nivel: nivel, id: Date.now() };
-
-            if (nivel === 'experiente') filaExperientes.push(jogador);
-            else filaIniciantes.push(jogador);
-
-            nomeInput.value = ""; 
-            salvarNoFirestore();
-            atualizarTela(); // Força atualização visual imediata
-        }
-
-        function removerDaFila(id, nivel) {
-            if (nivel === 'experiente') filaExperientes = filaExperientes.filter(j => j.id !== id);
-            else filaIniciantes = filaIniciantes.filter(j => j.id !== id);
-            salvarNoFirestore();
-            atualizarTela();
-        }
-
-        function tentarFormarTimes() {
-            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                if (timeA.length === 0) timeA = puxarJogadoresParaTime();
-                if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                    timeB = puxarJogadoresParaTime();
-                }
-                salvarNoFirestore();
-                atualizarTela();
-            } else {
-                alert("Necessário 4 experientes e 2 iniciantes na fila.");
-            }
-        }
-
-        function puxarJogadoresParaTime() {
-            const exp = filaExperientes.splice(0, 4); 
-            const ini = filaIniciantes.splice(0, 2);
-            return exp.concat(ini);
-        }
-
-        function marcarPonto(time) {
-            pontos[time]++;
-            salvarNoFirestore();
-            atualizarTela();
-        }
-
-        // --- NOVA FUNÇÃO: REMOVER PONTO ---
-        function removerPonto(time) {
-            if (pontos[time] > 0) { // Não deixa a pontuação ficar negativa
-                pontos[time]--;
-                salvarNoFirestore();
-                atualizarTela();
-            }
-        }
-
-        function finalizarPartida() {
-            if (timeA.length === 0 || timeB.length === 0) return alert("Não há partida para finalizar.");
-
-            let vencedor, perdedor;
-            if (pontos.A > pontos.B) { vencedor = timeA; perdedor = timeB; } 
-            else if (pontos.B > pontos.A) { vencedor = timeB; perdedor = timeA; } 
-            else return alert("Jogo empatado! Por favor, marque um ponto para definir o vencedor.");
-
-            perdedor.forEach(jogador => {
-                if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
-                else filaIniciantes.push(jogador);
-            });
-
-            timeA = vencedor;
-            timeB = [];
-            pontos = { A: 0, B: 0 };
-
-            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                timeB = puxarJogadoresParaTime();
-            } else {
-                alert("Fim de Jogo! O Vencedor ficou na quadra, mas faltam jogadores na fila para o próximo desafio.");
-            }
-
-            salvarNoFirestore();
-            atualizarTela();
-        }
-
-        // 6. ATUALIZAÇÃO DA TELA
-        function atualizarTela() {
-            document.getElementById('pontosA').innerText = pontos.A;
-            document.getElementById('pontosB').innerText = pontos.B;
-
-            document.getElementById('listaTimeA').innerText = timeA.length > 0 ? timeA.map(j => j.nome).join(', ') : "Nenhum";
-            document.getElementById('listaTimeB').innerText = timeB.length > 0 ? timeB.map(j => j.nome).join(', ') : "Nenhum";
-
-            document.getElementById('countExp').innerText = filaExperientes.length;
-            document.getElementById('countIni').innerText = filaIniciantes.length;
-
-            const renderJogador = (jogador) => `
-                <li>
-                    ${jogador.nome} 
-                    <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button>
-                </li>
-            `;
-            document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
-            document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
-        }
     </script>
 </body>
 </html>
