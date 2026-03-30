@@ -11,16 +11,22 @@
         .time-box { flex: 1; margin: 0 10px; }
         .nome-time { font-size: 20px; color: #bdc3c7; text-transform: uppercase; }
         .pontos { font-size: 80px; font-weight: bold; margin: 10px 0; color: #ecf0f1; }
-        .jogadores-lista { text-align: left; background: #1a252f; padding: 15px; border-radius: 8px; margin-top: 15px; min-height: 100px;}
-        h3 { margin-top: 0; color: #3498db; }
-        #status { font-size: 12px; color: #95a5a6; margin-bottom: 10px; }
+        
+        /* Estilo das colunas de jogadores no Ao Vivo */
+        .jogadores-quadra-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
+        .jogadores-coluna { flex: 1; background: #1a252f; padding: 15px; border-radius: 8px; min-width: 140px; }
+        .jogadores-coluna h3 { margin-top: 0; color: #3498db; }
+        .lista-nomes-quadra { font-size: 16px; line-height: 1.8; text-align: left; }
+        
+        #status { font-size: 14px; color: #f39c12; margin-bottom: 10px; font-weight: bold; }
+        .status-andamento { color: #2ecc71; font-size: 18px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <h1>🏐 Vôlei do Tio Budog</h1>
-    <div id="status">Conectando à quadra...</div>
-    <p>Acompanhe a partida em tempo real!</p>
+    <div id="status">🟡 Conectando à quadra...</div>
+    <div id="statusJogo" class="status-andamento"></div>
 
     <div class="placar-container">
         <div class="time-box">
@@ -33,45 +39,73 @@
         </div>
     </div>
 
-    <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
-        <div class="jogadores-lista" style="flex: 1; min-width: 140px;">
+    <div class="jogadores-quadra-container">
+        <div class="jogadores-coluna">
             <h3>Time A</h3>
-            <div id="listaTimeA">Aguardando...</div>
+            <div id="listaTimeA" class="lista-nomes-quadra">Aguardando formação...</div>
         </div>
-        <div class="jogadores-lista" style="flex: 1; min-width: 140px;">
+        <div class="jogadores-coluna">
             <h3>Time B</h3>
-            <div id="listaTimeB">Aguardando...</div>
+            <div id="listaTimeB" class="lista-nomes-quadra">Aguardando formação...</div>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <script src="firebase.js"></script>
-
     <script>
+        // 1. SUA CONFIGURAÇÃO AQUI DENTRO (Não use arquivo externo por enquanto)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
+            authDomain: "SEU_PROJETO.firebaseapp.com", // <-- PREENCHA COM O SEU PROJETO
+            projectId: "SEU_PROJETO",                 // <-- PREENCHA COM O SEU PROJETO
+            storageBucket: "SEU_PROJETO.appspot.com",   // <-- PREENCHA COM O SEU PROJETO
+            messagingSenderId: "SEU_ID",              // <-- PREENCHA COM SEU NUMERO
+            appId: "SEU_APP_ID"                       // <-- PREENCHA COM O SEU APP ID
+        };
+
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // 2. Lógica de Tempo Real
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
-            document.getElementById('status').innerText = "🟢 Ao Vivo";
+            const statusLabel = document.getElementById('status');
             
             if (doc.exists) {
+                statusLabel.innerText = "🟢 Ao Vivo e Conectado";
+                statusLabel.style.color = "#2ecc71";
+                
                 const dados = doc.data();
 
+                // Atualiza Placar
                 document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
                 document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
 
+                // Informa se o jogo tá rolando ou pausado
+                const statusJogo = document.getElementById('statusJogo');
+                if (dados.partidaEmAndamento) {
+                    statusJogo.innerText = "🏐 Partida em Andamento!";
+                    statusJogo.style.color = "#2ecc71";
+                } else {
+                    statusJogo.innerText = "⏸️ Aguardando Início da Partida...";
+                    statusJogo.style.color = "#f1c40f";
+                }
+
+                // Atualiza Nomes dos Jogadores
                 const formataJogadores = (time) => {
-                    return time && time.length > 0 ? time.map(j => j.nome).join('<br>') : "Vazio";
+                    return time && time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
                 };
 
                 document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
                 document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
             } else {
-                document.getElementById('status').innerText = "Aguardando início do jogo...";
+                statusLabel.innerText = "🔴 Aguardando o Juiz criar a primeira partida...";
+                statusLabel.style.color = "#e74c3c";
             }
         }, (error) => {
-            document.getElementById('status').innerText = "🔴 Erro: " + error.message;
+            document.getElementById('status').innerText = "🔴 Erro de Conexão: " + error.message;
+            document.getElementById('status').style.color = "#e74c3c";
         });
     </script>
 </body>
