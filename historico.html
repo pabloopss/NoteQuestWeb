@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico - Vôlei do Tio Budog</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; }
+        
+        .header-actions { text-align: center; margin-bottom: 25px; }
+        .btn-voltar { background-color: #9b59b6; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; }
+        .btn-voltar:hover { background-color: #8e44ad; }
+        
+        .status { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 20px; color: #f39c12; }
+
+        /* Estilos dos Cards de Histórico */
+        .historico-container { display: flex; flex-direction: column; gap: 15px; max-width: 800px; margin: 0 auto; }
+        .match-card { background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #ddd; }
+        
+        .match-header { background: #34495e; color: white; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; }
+        .formato-info { font-size: 12px; color: #bdc3c7; display: block; margin-top: 3px; font-weight: normal;}
+        
+        .match-body { display: flex; justify-content: space-between; align-items: stretch; padding: 15px; }
+        
+        .team { flex: 1; text-align: center; padding: 10px; border-radius: 8px; background: #ecf0f1; margin: 0 5px; }
+        .team h4 { margin: 0 0 10px 0; color: #2c3e50; font-size: 18px; }
+        .team .score { font-size: 36px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .team .players { font-size: 14px; line-height: 1.6; text-align: left; display: inline-block; }
+        
+        .vs { display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #7f8c8d; padding: 0 10px; }
+        
+        /* Destaque para o vencedor */
+        .winner { background: #d5f5e3; border: 2px solid #2ecc71; }
+        .winner h4, .winner .score { color: #27ae60; }
+        
+        .empty-message { text-align: center; color: #7f8c8d; font-style: italic; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Histórico de Partidas</h1>
+    
+    <div class="header-actions">
+        <button onclick="window.location.href='painel.html'" class="btn-voltar">⬅️ Voltar ao Painel do Juiz</button>
+    </div>
+
+    <div id="statusConexao" class="status">🟡 Carregando histórico...</div>
+
+    <div class="historico-container" id="listaHistorico">
+        </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAVNJpud6rhUHEWZxBSJ-o-8WcMtexk6yw",
+            authDomain: "notequestweb.firebaseapp.com",
+            projectId: "notequestweb",
+            storageBucket: "notequestweb.firebasestorage.app",
+            messagingSenderId: "1062376453055",
+            appId: "1:1062376453055:web:f06d234ff7b194dcf4670a"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const listaHistorico = document.getElementById('listaHistorico');
+        const status = document.getElementById('statusConexao');
+
+        db.collection('historico_partidas')
+          .orderBy('timestampDb', 'desc')
+          .onSnapshot((snapshot) => {
+              status.innerText = "🟢 Histórico Atualizado";
+              status.style.color = "green";
+              
+              if (snapshot.empty) {
+                  listaHistorico.innerHTML = "<div class='empty-message'>Nenhuma partida registrada no histórico ainda. O juiz precisa finalizar uma partida para ela aparecer aqui!</div>";
+                  return;
+              }
+
+              let html = "";
+
+              snapshot.forEach((doc) => {
+                  const partida = doc.data();
+                  
+                  const vitoriaA = partida.placarA > partida.placarB ? "winner" : "";
+                  const vitoriaB = partida.placarB > partida.placarA ? "winner" : "";
+
+                  const jogadoresA = partida.jogadoresTimeA && partida.jogadoresTimeA.length > 0 
+                                     ? "• " + partida.jogadoresTimeA.join("<br>• ") 
+                                     : "Nenhum jogador";
+                                     
+                  const jogadoresB = partida.jogadoresTimeB && partida.jogadoresTimeB.length > 0 
+                                     ? "• " + partida.jogadoresTimeB.join("<br>• ") 
+                                     : "Nenhum jogador";
+                  
+                  const formato = partida.formatoUsado || "Desconhecido";
+
+                  html += `
+                      <div class="match-card">
+                          <div class="match-header">
+                              🕒 Início: ${partida.inicio || 'N/A'} &nbsp; ➔ &nbsp; 🏁 Fim: ${partida.fim || 'N/A'}
+                              <span class="formato-info">Formato da partida: ${formato}</span>
+                          </div>
+                          <div class="match-body">
+                              <div class="team ${vitoriaA}">
+                                  <h4>Time A</h4>
+                                  <div class="score">${partida.placarA || 0}</div>
+                                  <div class="players">${jogadoresA}</div>
+                              </div>
+                              <div class="vs">X</div>
+                              <div class="team ${vitoriaB}">
+                                  <h4>Time B</h4>
+                                  <div class="score">${partida.placarB || 0}</div>
+                                  <div class="players">${jogadoresB}</div>
+                              </div>
+                          </div>
+                      </div>
+                  `;
+              });
+
+              listaHistorico.innerHTML = html;
+
+          }, (error) => {
+              status.innerText = "🔴 Erro ao carregar histórico: " + error.message;
+              status.style.color = "red";
+          });
+    </script>
+</body>
+</html>
