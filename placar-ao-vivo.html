@@ -21,6 +21,7 @@
         
         #status { font-size: 14px; color: #f39c12; margin-bottom: 15px; font-weight: bold; }
         .status-andamento { color: #2ecc71; font-size: 24px; margin-top: 10px; font-weight: bold; background-color: #1a252f; padding: 10px; border-radius: 8px; display: inline-block; }
+        .alerta-formato { color: #e74c3c; font-size: 14px; font-weight: bold; margin-top: 10px; display: none; }
 
         /* Nova Seção: Fila de Espera / Próximos Times */
         .titulo-fila { margin-top: 40px; color: #f1c40f; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
@@ -38,6 +39,7 @@
     <div id="status">🟡 Conectando à quadra...</div>
     
     <div id="statusJogo" class="status-andamento"></div>
+    <div id="alertaFormato" class="alerta-formato">⚠️ Modo Atual: 5 Experientes e 1 Iniciante</div>
 
     <div class="placar-container">
         <div class="time-box">
@@ -95,6 +97,14 @@
                 document.getElementById('pontosA').innerText = dados.pontos ? dados.pontos.A : 0;
                 document.getElementById('pontosB').innerText = dados.pontos ? dados.pontos.B : 0;
 
+                // Alerta Formato
+                const alerta = document.getElementById('alertaFormato');
+                if (dados.formatoCincoUm) {
+                    alerta.style.display = 'block';
+                } else {
+                    alerta.style.display = 'none';
+                }
+
                 // Status de Jogo
                 const statusJogo = document.getElementById('statusJogo');
                 if (dados.partidaEmAndamento) {
@@ -113,10 +123,13 @@
                 document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
                 document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
 
-                // LÓGICA DO PREVISOR DE PRÓXIMOS TIMES
+                // LÓGICA DO PREVISOR DE PRÓXIMOS TIMES DINÂMICA (4/2 ou 5/1)
                 let expEspera = dados.filaExperientes ? [...dados.filaExperientes] : [];
                 let iniEspera = dados.filaIniciantes ? [...dados.filaIniciantes] : [];
                 
+                let reqExp = dados.formatoCincoUm ? 5 : 4;
+                let reqIni = dados.formatoCincoUm ? 1 : 2;
+
                 let htmlProximos = "";
                 let contadorTime = 1;
 
@@ -125,13 +138,12 @@
                 } else {
                     while (expEspera.length > 0 || iniEspera.length > 0) {
                         
-                        let timeExp = expEspera.splice(0, 4);
-                        let timeIni = iniEspera.splice(0, 2);
+                        let timeExp = expEspera.splice(0, reqExp);
+                        let timeIni = iniEspera.splice(0, reqIni);
 
                         let listaHTML = "";
 
-                        // Preenche as vagas de Experiente (sem o texto (Exp))
-                        for (let i = 0; i < 4; i++) {
+                        for (let i = 0; i < reqExp; i++) {
                             if (timeExp[i]) {
                                 listaHTML += `<span class="exp">• ${timeExp[i].nome}</span><br>`;
                             } else {
@@ -139,8 +151,7 @@
                             }
                         }
 
-                        // Preenche as vagas de Iniciante (sem o texto (Ini))
-                        for (let i = 0; i < 2; i++) {
+                        for (let i = 0; i < reqIni; i++) {
                             if (timeIni[i]) {
                                 listaHTML += `<span class="ini">• ${timeIni[i].nome}</span><br>`;
                             } else {
