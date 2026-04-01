@@ -20,7 +20,7 @@
         .btn-success { background-color: #2ecc71; }
         .btn-warning { background-color: #f39c12; }
         .btn-start { background-color: #9b59b6; margin-bottom: 15px;}
-        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } 
+        .btn-small { padding: 5px 10px; font-size: 12px; margin-top: 0; margin-bottom: 0; width: auto;} 
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
@@ -29,10 +29,15 @@
         .jogadores-quadra-container { display: flex; gap: 10px; margin-top: 15px; }
         .jogadores-coluna { flex: 1; background: #ecf0f1; padding: 10px; border-radius: 8px; text-align: center; }
         .jogadores-coluna h4 { margin-top: 0; color: #2980b9; }
-        .lista-nomes-quadra { font-size: 14px; line-height: 1.6; text-align: left; padding-left: 10px; }
+        .lista-nomes-quadra { font-size: 14px; line-height: 1.6; text-align: left; padding: 0; }
 
-        ul { list-style-type: none; padding: 0; }
+        .formato-toggle { background: #e8f4f8; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; border: 1px solid #bce0ee; }
+        .formato-toggle input { width: auto; transform: scale(1.5); cursor: pointer; margin: 0; }
+        .formato-toggle label { font-weight: bold; cursor: pointer; color: #2980b9; }
+
+        ul { list-style-type: none; padding: 0; margin: 0; }
         li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
+        .jogador-quadra-item { background: #fff; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ddd; }
         .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
         #statusConexao { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
     </style>
@@ -70,12 +75,12 @@
             <div class="jogadores-coluna">
                 <h4>Time A</h4>
                 <div id="listaTimeA" class="lista-nomes-quadra">Vazio</div>
-                <button onclick="desmontarTime('A')" class="btn-warning btn-small" id="btnDesmontarA">Desmontar Time A</button>
+                <button onclick="desmontarTime('A')" class="btn-warning btn-small" id="btnDesmontarA" style="margin-top: 10px; width: 100%;">Desmontar Time A</button>
             </div>
             <div class="jogadores-coluna">
                 <h4>Time B</h4>
                 <div id="listaTimeB" class="lista-nomes-quadra">Vazio</div>
-                <button onclick="desmontarTime('B')" class="btn-warning btn-small" id="btnDesmontarB">Desmontar Time B</button>
+                <button onclick="desmontarTime('B')" class="btn-warning btn-small" id="btnDesmontarB" style="margin-top: 10px; width: 100%;">Desmontar Time B</button>
             </div>
         </div>
     </div>
@@ -94,6 +99,12 @@
 
     <div class="card">
         <h2>Filas de Espera</h2>
+        
+        <div class="formato-toggle">
+            <input type="checkbox" id="toggleFormato" onchange="alternarFormato()">
+            <label for="toggleFormato">Usar formato 5 Experientes e 1 Iniciante</label>
+        </div>
+
         <button class="btn-primary" id="btnFormarTimes" onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
         
         <h3>Experientes (<span id="countExp">0</span>)</h3>
@@ -126,6 +137,7 @@
         let pontos = { A: 0, B: 0 };
         let partidaEmAndamento = false;
         let mensagemVencedor = ""; 
+        let formatoCincoUm = false;
 
         db.collection('volei').doc('partidaAtual').onSnapshot((doc) => {
             const status = document.getElementById('statusConexao');
@@ -139,10 +151,11 @@
                 pontos = dados.pontos || { A: 0, B: 0 };
                 partidaEmAndamento = dados.partidaEmAndamento || false;
                 mensagemVencedor = dados.mensagemVencedor || "";
+                formatoCincoUm = dados.formatoCincoUm || false;
                 
                 atualizarTela(); 
                 
-                status.innerText = "🟢 Sincronizado e Online (Lista Salva)";
+                status.innerText = "🟢 Sincronizado e Online";
                 status.style.color = "green";
             } else {
                 salvarNoFirestore(); 
@@ -161,10 +174,21 @@
                 timeB: timeB,
                 pontos: pontos,
                 partidaEmAndamento: partidaEmAndamento,
-                mensagemVencedor: mensagemVencedor
+                mensagemVencedor: mensagemVencedor,
+                formatoCincoUm: formatoCincoUm
             }).catch(error => {
                 console.error("Erro ao salvar:", error);
             });
+        }
+
+        function alternarFormato() {
+            const checkbox = document.getElementById('toggleFormato');
+            formatoCincoUm = checkbox.checked;
+            
+            if (formatoCincoUm) {
+                alert("⚠️ ATENÇÃO: Os times agora serão formados por 5 Experientes e apenas 1 Iniciante!");
+            }
+            salvarNoFirestore();
         }
 
         function adicionarJogador() {
@@ -189,22 +213,23 @@
         }
 
         function tentarFormarTimes() {
-            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                // Preenche o A se estiver vazio
-                if (timeA.length === 0) timeA = puxarJogadoresParaTime();
-                // Preenche o B se estiver vazio e ainda tiver gente na fila
-                if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                    timeB = puxarJogadoresParaTime();
+            const reqExp = formatoCincoUm ? 5 : 4;
+            const reqIni = formatoCincoUm ? 1 : 2;
+
+            if (filaExperientes.length >= reqExp && filaIniciantes.length >= reqIni) {
+                if (timeA.length === 0) timeA = puxarJogadoresParaTime(reqExp, reqIni);
+                if (timeB.length === 0 && filaExperientes.length >= reqExp && filaIniciantes.length >= reqIni) {
+                    timeB = puxarJogadoresParaTime(reqExp, reqIni);
                 }
                 salvarNoFirestore();
             } else {
-                alert("Necessário pelo menos 4 experientes e 2 iniciantes na fila para formar um time.");
+                alert(`Necessário pelo menos ${reqExp} experientes e ${reqIni} iniciantes na fila para formar um time.`);
             }
         }
 
-        function puxarJogadoresParaTime() {
-            const exp = filaExperientes.splice(0, 4); 
-            const ini = filaIniciantes.splice(0, 2);
+        function puxarJogadoresParaTime(qtdExp, qtdIni) {
+            const exp = filaExperientes.splice(0, qtdExp); 
+            const ini = filaIniciantes.splice(0, qtdIni);
             return exp.concat(ini);
         }
 
@@ -215,9 +240,7 @@
 
             let timeAlvo = (qualTime === 'A') ? timeA : timeB;
 
-            if (timeAlvo.length === 0) {
-                return alert("Este time já está vazio.");
-            }
+            if (timeAlvo.length === 0) return alert("Este time já está vazio.");
 
             timeAlvo.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
@@ -230,13 +253,36 @@
             salvarNoFirestore();
         }
 
+        function retirarJogadorDaPartida(qualTime, indexJogador, categoria) {
+            const timeAlvo = qualTime === 'A' ? timeA : timeB;
+            const filaAlvo = categoria === 'experiente' ? filaExperientes : filaIniciantes;
+            const jogadorSaindo = timeAlvo[indexJogador];
+
+            if (filaAlvo.length > 0) {
+                // Remove o primeiro da fila e coloca no lugar exato do time
+                const jogadorEntrando = filaAlvo.shift();
+                timeAlvo[indexJogador] = jogadorEntrando;
+                filaAlvo.push(jogadorSaindo); // Joga quem saiu pro fim
+            } else {
+                const confirmar = confirm(`A fila de ${categoria}s está vazia. O time ficará com um jogador a menos. Deseja retirar mesmo assim?`);
+                if (confirmar) {
+                    timeAlvo.splice(indexJogador, 1);
+                    filaAlvo.push(jogadorSaindo);
+                } else {
+                    return;
+                }
+            }
+            salvarNoFirestore();
+        }
+
         function iniciarPartida() {
+            // Se as equipes foram montadas elas devem ter 6 jogadores
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
                 mensagemVencedor = ""; 
                 salvarNoFirestore();
             } else {
-                alert("Você precisa formar os dois times completos antes de iniciar.");
+                alert("Você precisa formar os dois times completos (6 jogadores cada) antes de iniciar.");
             }
         }
 
@@ -258,38 +304,31 @@
             if (!partidaEmAndamento) return alert("A partida ainda não foi iniciada.");
 
             const confirmacao = confirm("Tem certeza que deseja encerrar a partida?\nO vencedor será mantido na sua respectiva quadra e o perdedor irá para o fim da fila de espera.");
-            
-            if (!confirmacao) {
-                return; 
-            }
+            if (!confirmacao) return; 
 
             let nomeVencedor;
             
-            // LÓGICA NOVA: O vencedor fica, o perdedor esvazia
             if (pontos.A > pontos.B) { 
                 nomeVencedor = "Time A";
-                // Devolve o Time B pra fila
                 timeB.forEach(jogador => {
                     if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                     else filaIniciantes.push(jogador);
                 });
-                timeB = []; // Esvazia o lado B
+                timeB = []; 
             } 
             else if (pontos.B > pontos.A) { 
                 nomeVencedor = "Time B";
-                // Devolve o Time A pra fila
                 timeA.forEach(jogador => {
                     if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
                     else filaIniciantes.push(jogador);
                 });
-                timeA = []; // Esvazia o lado A
+                timeA = []; 
             } 
             else {
                 return alert("Jogo empatado! Marque um ponto para definir o vencedor antes de encerrar.");
             }
 
             mensagemVencedor = `🏆 O ${nomeVencedor} venceu a partida!`;
-
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
 
@@ -299,17 +338,27 @@
         function atualizarTela() {
             document.getElementById('pontosA').innerText = pontos.A;
             document.getElementById('pontosB').innerText = pontos.B;
+            document.getElementById('toggleFormato').checked = formatoCincoUm;
 
-            const formataTime = (time) => time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
-            document.getElementById('listaTimeA').innerHTML = formataTime(timeA);
-            document.getElementById('listaTimeB').innerHTML = formataTime(timeB);
+            const renderTime = (time, idTime) => {
+                if (time.length === 0) return "Vazio";
+                return time.map((j, i) => `
+                    <div class="jogador-quadra-item">
+                        <span>• ${j.nome}</span>
+                        ${partidaEmAndamento ? `<button class="btn-warning btn-small" onclick="retirarJogadorDaPartida('${idTime}', ${i}, '${j.nivel}')">🔄 Trocar</button>` : ''}
+                    </div>
+                `).join('');
+            };
+
+            document.getElementById('listaTimeA').innerHTML = renderTime(timeA, 'A');
+            document.getElementById('listaTimeB').innerHTML = renderTime(timeB, 'B');
 
             document.getElementById('countExp').innerText = filaExperientes.length;
             document.getElementById('countIni').innerText = filaIniciantes.length;
 
-            const renderJogador = (jogador) => `<li>${jogador.nome} <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button></li>`;
-            document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
-            document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
+            const renderJogadorFila = (jogador) => `<li>${jogador.nome} <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button></li>`;
+            document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogadorFila).join('');
+            document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogadorFila).join('');
 
             const btnFormarTimes = document.getElementById('btnFormarTimes');
             const btnIniciar = document.getElementById('btnIniciarPartida');
