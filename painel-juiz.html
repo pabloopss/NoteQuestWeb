@@ -40,6 +40,9 @@
         .jogador-quadra-item { background: #fff; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ddd; }
         .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
         #statusConexao { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
+        
+        /* NOVA CLASSE DE DESTAQUE PARA INICIANTES NA QUADRA */
+        .iniciante-destaque { color: #d35400; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -258,14 +261,20 @@
             const filaAlvo = categoria === 'experiente' ? filaExperientes : filaIniciantes;
             const jogadorSaindo = timeAlvo[indexJogador];
 
+            // 1º NOVIDADE: ALERTA DE CONFIRMAÇÃO PARA EVITAR ACIDENTES
+            const querMesmoTrocar = confirm(`Tem certeza que deseja retirar o jogador ${jogadorSaindo.nome} da partida?`);
+            if (!querMesmoTrocar) {
+                return; // O juiz cancelou, a função para aqui.
+            }
+
             if (filaAlvo.length > 0) {
-                // Remove o primeiro da fila e coloca no lugar exato do time
                 const jogadorEntrando = filaAlvo.shift();
                 timeAlvo[indexJogador] = jogadorEntrando;
-                filaAlvo.push(jogadorSaindo); // Joga quem saiu pro fim
+                filaAlvo.push(jogadorSaindo); 
+                alert(`🔄 ${jogadorSaindo.nome} saiu e o próximo da fila (${jogadorEntrando.nome}) entrou.`);
             } else {
-                const confirmar = confirm(`A fila de ${categoria}s está vazia. O time ficará com um jogador a menos. Deseja retirar mesmo assim?`);
-                if (confirmar) {
+                const confirmarVazio = confirm(`A fila de ${categoria}s está vazia. O time ficará com um jogador a menos. Deseja retirar mesmo assim?`);
+                if (confirmarVazio) {
                     timeAlvo.splice(indexJogador, 1);
                     filaAlvo.push(jogadorSaindo);
                 } else {
@@ -276,7 +285,6 @@
         }
 
         function iniciarPartida() {
-            // Se as equipes foram montadas elas devem ter 6 jogadores
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
                 mensagemVencedor = ""; 
@@ -344,7 +352,9 @@
                 if (time.length === 0) return "Vazio";
                 return time.map((j, i) => `
                     <div class="jogador-quadra-item">
-                        <span>• ${j.nome}</span>
+                        <span class="${j.nivel === 'iniciante' ? 'iniciante-destaque' : ''}">
+                            • ${j.nome} ${j.nivel === 'iniciante' ? '(Ini)' : ''}
+                        </span>
                         ${partidaEmAndamento ? `<button class="btn-warning btn-small" onclick="retirarJogadorDaPartida('${idTime}', ${i}, '${j.nivel}')">🔄 Trocar</button>` : ''}
                     </div>
                 `).join('');
