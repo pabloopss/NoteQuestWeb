@@ -20,11 +20,12 @@
         .btn-success { background-color: #2ecc71; }
         .btn-warning { background-color: #f39c12; }
         .btn-start { background-color: #9b59b6; margin-bottom: 15px;}
-        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } 
-        
-        /* Novo estilo para o botão de histórico */
         .btn-history { background-color: #2c3e50; margin-bottom: 15px; }
         .btn-history:hover { background-color: #1a252f; }
+        .btn-small { padding: 5px; font-size: 14px; margin-top: 10px; } 
+        
+        .botoes-formacao { display: flex; gap: 10px; margin-bottom: 15px; }
+        .botoes-formacao button { margin: 0; }
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
         .time-box { text-align: center; flex: 1; padding: 10px; border: 1px solid #ddd; margin: 0 5px; border-radius: 8px; }
@@ -46,7 +47,6 @@
     <h1>🏐 Vôlei do Tio Budog</h1>
     <div id="statusConexao">🟡 Tentando conectar ao banco de dados...</div>
 
-    <!-- BOTÃO DO HISTÓRICO ADICIONADO AQUI -->
     <button onclick="abrirHistorico()" class="btn-history">📜 Abrir Histórico de Partidas</button>
 
     <div class="card">
@@ -93,6 +93,8 @@
             <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
             <select id="nivelJogador">
                 <option value="experiente">Experiente</option>
+                <!-- NOVA OPÇÃO AQUI -->
+                <option value="intermediario">Intermediário</option>
                 <option value="iniciante">Iniciante</option>
             </select>
         </div>
@@ -101,10 +103,19 @@
 
     <div class="card">
         <h2>Filas de Espera</h2>
-        <button class="btn-primary" id="btnFormarTimes" onclick="tentarFormarTimes()" style="margin-bottom: 15px;">Tentar Formar Times</button>
+        
+        <!-- NOVOS BOTÕES DE FORMAÇÃO DE TIME -->
+        <div class="botoes-formacao">
+            <button class="btn-primary" id="btnFormarMisto" onclick="tentarFormarTimes('misto')">Formar Misto (4 Exp + 2 Int/Ini)</button>
+            <button class="btn-primary" id="btnFormarAvancado" onclick="tentarFormarTimes('avancado')" style="background-color: #8e44ad;">Formar Avançado (6 Exp)</button>
+        </div>
         
         <h3>Experientes (<span id="countExp">0</span>)</h3>
         <ul id="listaExperientes"></ul>
+
+        <!-- NOVA FILA -->
+        <h3>Intermediários (<span id="countInt">0</span>)</h3>
+        <ul id="listaIntermediarios"></ul>
 
         <h3>Iniciantes (<span id="countIni">0</span>)</h3>
         <ul id="listaIniciantes"></ul>
@@ -127,6 +138,7 @@
         const db = firebase.firestore();
 
         let filaExperientes = [];
+        let filaIntermediarios = []; // NOVO
         let filaIniciantes = [];
         let timeA = []; 
         let timeB = []; 
@@ -140,6 +152,7 @@
             if (doc.exists) {
                 const dados = doc.data();
                 filaExperientes = dados.filaExperientes || [];
+                filaIntermediarios = dados.filaIntermediarios || []; // NOVO
                 filaIniciantes = dados.filaIniciantes || [];
                 timeA = dados.timeA || [];
                 timeB = dados.timeB || [];
@@ -163,6 +176,7 @@
         function salvarNoFirestore() {
             db.collection('volei').doc('partidaAtual').set({
                 filaExperientes: filaExperientes,
+                filaIntermediarios: filaIntermediarios, // NOVO
                 filaIniciantes: filaIniciantes,
                 timeA: timeA,
                 timeB: timeB,
@@ -174,7 +188,6 @@
             });
         }
         
-        // NOVO: Função que abre a página de histórico em nova aba
         function abrirHistorico() {
             window.open('historico.html', '_blank');
         }
@@ -188,6 +201,7 @@
             const jogador = { nome: nome, nivel: nivel, id: Date.now() };
 
             if (nivel === 'experiente') filaExperientes.push(jogador);
+            else if (nivel === 'intermediario') filaIntermediarios.push(jogador); // NOVO
             else filaIniciantes.push(jogador);
 
             nomeInput.value = ""; 
@@ -196,41 +210,66 @@
 
         function removerDaFila(id, nivel) {
             if (nivel === 'experiente') filaExperientes = filaExperientes.filter(j => j.id !== id);
+            else if (nivel === 'intermediario') filaIntermediarios = filaIntermediarios.filter(j => j.id !== id); // NOVO
             else filaIniciantes = filaIniciantes.filter(j => j.id !== id);
             salvarNoFirestore();
         }
 
-        function tentarFormarTimes() {
-            if (filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                if (timeA.length === 0) timeA = puxarJogadoresParaTime();
-                if (timeB.length === 0 && filaExperientes.length >= 4 && filaIniciantes.length >= 2) {
-                    timeB = puxarJogadoresParaTime();
+        // LÓGICA NOVA DE FORMAÇÃO
+        function tentarFormarTimes(tipo) {
+            if (timeA.length === 6 && timeB.length === 6) {
+                return alert("A quadra já está cheia!");
+            }
+
+            // Junta as filas de intermediário e iniciante para calcular o time misto
+            let mistosEspera = filaIntermediarios.concat(filaIniciantes);
+
+            if (tipo === 'misto') {
+                if (filaExperientes.length >= 4 && mistosEspera.length >= 2) {
+                    if (timeA.length === 0) timeA = puxarJogadoresMisto();
+                    else if (timeB.length === 0) timeB = puxarJogadoresMisto();
+                    salvarNoFirestore();
+                } else {
+                    alert("Para um time misto, você precisa de 4 experientes e 2 intermediários/iniciantes na fila.");
                 }
-                salvarNoFirestore();
-            } else {
-                alert("Necessário pelo menos 4 experientes e 2 iniciantes na fila para formar um time.");
+            } else if (tipo === 'avancado') {
+                if (filaExperientes.length >= 6) {
+                    if (timeA.length === 0) timeA = puxarJogadoresAvancado();
+                    else if (timeB.length === 0) timeB = puxarJogadoresAvancado();
+                    salvarNoFirestore();
+                } else {
+                    alert("Para um time avançado, você precisa de pelo menos 6 experientes na fila.");
+                }
             }
         }
 
-        function puxarJogadoresParaTime() {
+        function puxarJogadoresMisto() {
             const exp = filaExperientes.splice(0, 4); 
-            const ini = filaIniciantes.splice(0, 2);
-            return exp.concat(ini);
+            
+            // Mistura Intermediários e Iniciantes e ordena por quem chegou primeiro (pelo ID/Data)
+            let combinados = filaIntermediarios.concat(filaIniciantes).sort((a, b) => a.id - b.id);
+            const selecionados = combinados.splice(0, 2); // Puxa os 2 mais antigos
+
+            // Devolve quem sobrou pras suas listas originais
+            filaIntermediarios = combinados.filter(j => j.nivel === 'intermediario');
+            filaIniciantes = combinados.filter(j => j.nivel === 'iniciante');
+
+            return exp.concat(selecionados);
+        }
+
+        function puxarJogadoresAvancado() {
+            return filaExperientes.splice(0, 6);
         }
 
         function desmontarTime(qualTime) {
-            if (partidaEmAndamento) {
-                return alert("Você não pode desmontar um time durante uma partida!");
-            }
+            if (partidaEmAndamento) return alert("Você não pode desmontar um time durante uma partida!");
 
             let timeAlvo = (qualTime === 'A') ? timeA : timeB;
-
-            if (timeAlvo.length === 0) {
-                return alert("Este time já está vazio.");
-            }
+            if (timeAlvo.length === 0) return alert("Este time já está vazio.");
 
             timeAlvo.forEach(jogador => {
                 if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                else if (jogador.nivel === 'intermediario') filaIntermediarios.push(jogador); // NOVO
                 else filaIniciantes.push(jogador);
             });
 
@@ -266,12 +305,8 @@
 
         function finalizarPartida() {
             if (!partidaEmAndamento) return alert("A partida ainda não foi iniciada.");
-
             const confirmacao = confirm("Tem certeza que deseja encerrar a partida?\nO histórico será salvo.");
-            
-            if (!confirmacao) {
-                return; 
-            }
+            if (!confirmacao) return; 
 
             let nomeVencedor;
             
@@ -279,6 +314,7 @@
                 nomeVencedor = "Time A";
                 timeB.forEach(jogador => {
                     if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                    else if (jogador.nivel === 'intermediario') filaIntermediarios.push(jogador);
                     else filaIniciantes.push(jogador);
                 });
             } 
@@ -286,6 +322,7 @@
                 nomeVencedor = "Time B";
                 timeA.forEach(jogador => {
                     if (jogador.nivel === 'experiente') filaExperientes.push(jogador);
+                    else if (jogador.nivel === 'intermediario') filaIntermediarios.push(jogador);
                     else filaIniciantes.push(jogador);
                 });
             } 
@@ -306,11 +343,8 @@
 
             mensagemVencedor = `🏆 O ${nomeVencedor} venceu a partida!`;
 
-            if (nomeVencedor === "Time A") {
-                timeB = [];
-            } else {
-                timeA = [];
-            }
+            if (nomeVencedor === "Time A") timeB = [];
+            else timeA = [];
 
             pontos = { A: 0, B: 0 };
             partidaEmAndamento = false; 
@@ -327,13 +361,16 @@
             document.getElementById('listaTimeB').innerHTML = formataTime(timeB);
 
             document.getElementById('countExp').innerText = filaExperientes.length;
+            document.getElementById('countInt').innerText = filaIntermediarios.length; // NOVO
             document.getElementById('countIni').innerText = filaIniciantes.length;
 
             const renderJogador = (jogador) => `<li>${jogador.nome} <button class="remove-btn" onclick="removerDaFila(${jogador.id}, '${jogador.nivel}')">🗑️</button></li>`;
             document.getElementById('listaExperientes').innerHTML = filaExperientes.map(renderJogador).join('');
+            document.getElementById('listaIntermediarios').innerHTML = filaIntermediarios.map(renderJogador).join(''); // NOVO
             document.getElementById('listaIniciantes').innerHTML = filaIniciantes.map(renderJogador).join('');
 
-            const btnFormarTimes = document.getElementById('btnFormarTimes');
+            const btnFormarMisto = document.getElementById('btnFormarMisto');
+            const btnFormarAvancado = document.getElementById('btnFormarAvancado');
             const btnIniciar = document.getElementById('btnIniciarPartida');
             const btnFinalizar = document.getElementById('btnFinalizarPartida');
             const btnDesmontarA = document.getElementById('btnDesmontarA'); 
@@ -341,14 +378,16 @@
             const botoesPonto = ['btnPontoA', 'btnMenosPontoA', 'btnPontoB', 'btnMenosPontoB'];
 
             if (partidaEmAndamento) {
-                btnFormarTimes.disabled = true;
+                btnFormarMisto.disabled = true;
+                btnFormarAvancado.disabled = true;
                 btnIniciar.disabled = true;
                 btnFinalizar.disabled = false;
                 btnDesmontarA.disabled = true; 
                 btnDesmontarB.disabled = true; 
                 botoesPonto.forEach(id => document.getElementById(id).disabled = false);
             } else {
-                btnFormarTimes.disabled = false;
+                btnFormarMisto.disabled = false;
+                btnFormarAvancado.disabled = false;
                 btnFinalizar.disabled = true;
                 btnDesmontarA.disabled = false; 
                 btnDesmontarB.disabled = false; 
