@@ -25,9 +25,10 @@
         .proximos-times-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
         .proximo-time-box { background: #273746; padding: 15px; border-radius: 8px; min-width: 200px; text-align: left; border: 1px solid #34495e; }
         .proximo-time-box h4 { margin-top: 0; color: #e67e22; text-align: center; border-bottom: 1px dashed #7f8c8d; padding-bottom: 5px; font-size: 14px; }
+        
+        /* Agora todos os nomes ficam com a mesma cor padrão e discreta */
+        .jogador-nome { color: #ecf0f1; }
         .vazio { color: #7f8c8d; font-style: italic; }
-        .exp { color: #ecf0f1; }
-        .ini { color: #bdc3c7; }
     </style>
 </head>
 <body>
@@ -108,54 +109,53 @@
                 document.getElementById('listaTimeA').innerHTML = formataJogadores(dados.timeA);
                 document.getElementById('listaTimeB').innerHTML = formataJogadores(dados.timeB);
 
-                // LÓGICA DO PREVISOR DE PRÓXIMOS TIMES ATUALIZADA
+                // LÓGICA DO PREVISOR (AGORA SEM ESPECIFICAR NÍVEL)
                 let expEspera = dados.filaExperientes ? [...dados.filaExperientes] : [];
                 let intEspera = dados.filaIntermediarios ? [...dados.filaIntermediarios] : [];
                 let iniEspera = dados.filaIniciantes ? [...dados.filaIniciantes] : [];
                 
-                // Mistura iniciantes e intermediários para o cálculo de time Misto
-                let mistosEspera = intEspera.concat(iniEspera).sort((a,b) => a.id - b.id);
+                let qIni = (dados.configFormacao && dados.configFormacao.qIni !== undefined) ? dados.configFormacao.qIni : 0;
+                let qInt = (dados.configFormacao && dados.configFormacao.qInt !== undefined) ? dados.configFormacao.qInt : 0;
+                let qExp = 6 - (qIni + qInt);
                 
                 let htmlProximos = "";
                 let contadorTime = 1;
 
-                if (expEspera.length === 0 && mistosEspera.length === 0) {
+                if (expEspera.length === 0 && intEspera.length === 0 && iniEspera.length === 0) {
                     htmlProximos = "<p class='vazio'>A fila de espera está vazia no momento.</p>";
                 } else {
-                    while (expEspera.length > 0 || mistosEspera.length > 0) {
+                    while (expEspera.length > 0 || intEspera.length > 0 || iniEspera.length > 0) {
+                        
+                        let timeExp = expEspera.splice(0, qExp);
+                        let timeInt = intEspera.splice(0, qInt);
+                        let timeIni = iniEspera.splice(0, qIni);
                         
                         let listaHTML = "";
-                        let tipoFormacao = "Misto"; // Padrão é misto
+                        
+                        // Todos os jogadores agora usam a mesma classe genérica "jogador-nome"
+                        // E os espaços vazios mostram apenas "Aguardando jogador..."
 
-                        // Se a fila tiver 6 experientes e faltar gente para o time misto, prevemos um time Avançado
-                        if (expEspera.length >= 6 && mistosEspera.length < 2) {
-                            tipoFormacao = "Avançado";
+                        // 1. Processa as vagas puxadas da fila de experientes
+                        for (let i = 0; i < qExp; i++) {
+                            if (timeExp[i]) listaHTML += `<span class="jogador-nome">• ${timeExp[i].nome}</span><br>`;
+                            else listaHTML += `<span class="vazio">• Aguardando jogador...</span><br>`;
                         }
-
-                        if (tipoFormacao === "Avançado") {
-                            let timeExp = expEspera.splice(0, 6);
-                            for (let i = 0; i < 6; i++) {
-                                if (timeExp[i]) listaHTML += `<span class="exp">• ${timeExp[i].nome}</span><br>`;
-                                else listaHTML += `<span class="vazio">• Aguardando Experiente...</span><br>`;
-                            }
-                        } else {
-                            // Formação Mista (4 Exp + 2 Int/Ini)
-                            let timeExp = expEspera.splice(0, 4);
-                            let timeMisto = mistosEspera.splice(0, 2);
-
-                            for (let i = 0; i < 4; i++) {
-                                if (timeExp[i]) listaHTML += `<span class="exp">• ${timeExp[i].nome}</span><br>`;
-                                else listaHTML += `<span class="vazio">• Aguardando Experiente...</span><br>`;
-                            }
-                            for (let i = 0; i < 2; i++) {
-                                if (timeMisto[i]) listaHTML += `<span class="ini">• ${timeMisto[i].nome}</span><br>`;
-                                else listaHTML += `<span class="vazio">• Aguardando Int/Ini...</span><br>`;
-                            }
+                        
+                        // 2. Processa as vagas puxadas da fila de intermediários
+                        for (let i = 0; i < qInt; i++) {
+                            if (timeInt[i]) listaHTML += `<span class="jogador-nome">• ${timeInt[i].nome}</span><br>`;
+                            else listaHTML += `<span class="vazio">• Aguardando jogador...</span><br>`;
+                        }
+                        
+                        // 3. Processa as vagas puxadas da fila de iniciantes
+                        for (let i = 0; i < qIni; i++) {
+                            if (timeIni[i]) listaHTML += `<span class="jogador-nome">• ${timeIni[i].nome}</span><br>`;
+                            else listaHTML += `<span class="vazio">• Aguardando jogador...</span><br>`;
                         }
 
                         htmlProximos += `
                             <div class="proximo-time-box">
-                                <h4>Próximo Time ${contadorTime} (${tipoFormacao})</h4>
+                                <h4>Próximo Time ${contadorTime}</h4>
                                 <div class="lista-nomes-quadra">
                                     ${listaHTML}
                                 </div>
