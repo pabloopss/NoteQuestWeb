@@ -31,8 +31,9 @@
         .config-time-box { background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 2px dashed #bdc3c7; }
         .config-time-box h4 { margin-top: 0; color: #2c3e50; margin-bottom: 15px; }
         .config-inputs { display: flex; gap: 20px; justify-content: center; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-        .config-inputs label { font-weight: bold; color: #34495e; }
-        .config-inputs input { width: 60px; text-align: center; font-weight: bold; }
+        .config-inputs label { font-weight: bold; color: #34495e; display: flex; align-items: center; gap: 8px;}
+        /* Estilo para os dropdowns ficarem bonitos */
+        .config-inputs select { width: 70px; text-align: center; font-weight: bold; padding: 8px; cursor: pointer;}
         .config-aviso { font-size: 14px; color: #7f8c8d; margin-bottom: 10px; }
         
         .placar { display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0; }
@@ -102,7 +103,6 @@
         <h2>Adicionar Jogador</h2>
         <div class="form-group">
             <input type="text" id="nomeJogador" placeholder="Nome do Jogador">
-            <!-- AQUI ESTÃO AS 3 OPÇÕES DE NÍVEL -->
             <select id="nivelJogador">
                 <option value="experiente">Experiente</option>
                 <option value="intermediario">Intermediário</option>
@@ -115,12 +115,32 @@
     <div class="card">
         <h2>Filas de Espera</h2>
         
-        <!-- NOVA ÁREA DE CONFIGURAÇÃO DO TIME -->
         <div class="config-time-box">
             <h4>⚙️ Configurar Formação do Próximo Time</h4>
             <div class="config-inputs">
-                <label>Qtd. Iniciantes: <input type="number" id="qtdIni" value="0" min="0" max="6" onchange="validarInputsFormacao()"></label>
-                <label>Qtd. Intermediários: <input type="number" id="qtdInt" value="0" min="0" max="6" onchange="validarInputsFormacao()"></label>
+                <!-- AGORA UTILIZAMOS DROPDOWNS (SELECT) -->
+                <label>Qtd. Iniciantes: 
+                    <select id="qtdIni" onchange="validarInputsFormacao()">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+                </label>
+                <label>Qtd. Intermediários: 
+                    <select id="qtdInt" onchange="validarInputsFormacao()">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+                </label>
             </div>
             <div class="config-aviso">
                 O time será completado com <strong id="lblExp">6</strong> Experiente(s).
@@ -177,7 +197,6 @@
                 partidaEmAndamento = dados.partidaEmAndamento || false;
                 mensagemVencedor = dados.mensagemVencedor || "";
                 
-                // Carrega a configuração do banco se houver
                 if (dados.configFormacao) {
                     document.getElementById('qtdIni').value = dados.configFormacao.qIni;
                     document.getElementById('qtdInt').value = dados.configFormacao.qInt;
@@ -195,22 +214,18 @@
             document.getElementById('statusConexao').style.color = "red";
         });
 
-        // Esta função garante que a soma não passe de 6 e avisa a Tela Ao Vivo
         function validarInputsFormacao() {
             let ini = parseInt(document.getElementById('qtdIni').value) || 0;
             let int = parseInt(document.getElementById('qtdInt').value) || 0;
 
-            if (ini < 0) { ini = 0; document.getElementById('qtdIni').value = 0; }
-            if (int < 0) { int = 0; document.getElementById('qtdInt').value = 0; }
-
             if (ini + int > 6) {
                 alert("A soma de Iniciantes e Intermediários não pode ser maior que 6!");
-                int = 6 - ini; // Corrige automaticamente
+                int = 6 - ini; 
                 document.getElementById('qtdInt').value = int;
             }
 
             document.getElementById('lblExp').innerText = 6 - (ini + int);
-            salvarNoFirestore(); // Salva para o previsor da Tela Ao Vivo atualizar na mesma hora
+            salvarNoFirestore(); 
         }
 
         function salvarNoFirestore() {
@@ -274,7 +289,6 @@
             salvarNoFirestore();
         }
 
-        // LÓGICA TOTALMENTE DINÂMICA DE FORMAR TIMES
         function tentarFormarTimes() {
             if (timeA.length === 6 && timeB.length === 6) {
                 return alert("A quadra já está cheia!");
