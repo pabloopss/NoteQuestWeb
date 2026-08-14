@@ -27,12 +27,10 @@
         .botoes-topo { display: flex; gap: 10px; margin-bottom: 15px; }
         .botoes-topo button { margin: 0; flex: 1; }
 
-        /* Estilo da área de configuração do time */
         .config-time-box { background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 2px dashed #bdc3c7; }
         .config-time-box h4 { margin-top: 0; color: #2c3e50; margin-bottom: 15px; }
         .config-inputs { display: flex; gap: 20px; justify-content: center; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
         .config-inputs label { font-weight: bold; color: #34495e; display: flex; align-items: center; gap: 8px;}
-        /* Estilo para os dropdowns ficarem bonitos */
         .config-inputs select { width: 70px; text-align: center; font-weight: bold; padding: 8px; cursor: pointer;}
         .config-aviso { font-size: 14px; color: #7f8c8d; margin-bottom: 10px; }
         
@@ -44,10 +42,18 @@
         .jogadores-coluna { flex: 1; background: #ecf0f1; padding: 10px; border-radius: 8px; text-align: center; }
         .jogadores-coluna h4 { margin-top: 0; color: #2980b9; }
         .lista-nomes-quadra { font-size: 14px; line-height: 1.6; text-align: left; padding-left: 10px; }
+        
+        /* Ajuste para alinhar o botão de substituição perfeitamente na quadra */
+        .linha-jogador-quadra { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #bdc3c7; padding: 4px 0; }
+        .linha-jogador-quadra:last-child { border-bottom: none; }
 
         ul { list-style-type: none; padding: 0; }
         li { background: #ecf0f1; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;}
+        
+        /* Botões de lixeira e substituir */
         .remove-btn { background: transparent; color: #e74c3c; width: auto; padding: 0 5px; font-size: 18px; margin-bottom: 0; }
+        .sub-btn { color: #3498db; } /* Cor azul para o botão de substituir */
+
         #statusConexao { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f39c12; }
     </style>
 </head>
@@ -118,7 +124,6 @@
         <div class="config-time-box">
             <h4>⚙️ Configurar Formação do Próximo Time</h4>
             <div class="config-inputs">
-                <!-- AGORA UTILIZAMOS DROPDOWNS (SELECT) -->
                 <label>Qtd. Iniciantes: 
                     <select id="qtdIni" onchange="validarInputsFormacao()">
                         <option value="0">0</option>
@@ -335,6 +340,50 @@
             salvarNoFirestore();
         }
 
+        // ==========================================
+        // NOVA FUNÇÃO: SUBSTITUIR JOGADOR NA QUADRA
+        // ==========================================
+        function substituirJogador(idJogador, letraTime) {
+            // 1. Identifica qual time o jogador está
+            let timeAtual = (letraTime === 'A') ? timeA : timeB;
+            
+            // 2. Encontra a posição (index) dele no array do time
+            let index = timeAtual.findIndex(j => j.id === idJogador);
+            if (index === -1) return; // Se não achar (segurança), para aqui
+            
+            let jogadorSaindo = timeAtual[index];
+            let filaCorrespondente;
+            
+            // 3. Descobre qual é a fila do nível dele
+            if (jogadorSaindo.nivel === 'experiente') filaCorrespondente = filaExperientes;
+            else if (jogadorSaindo.nivel === 'intermediario') filaCorrespondente = filaIntermediarios;
+            else filaCorrespondente = filaIniciantes;
+            
+            // 4. Se a fila não tiver ninguém, avisa o juiz e cancela a ação
+            if (filaCorrespondente.length === 0) {
+                alert(`Não há jogadores na fila de "${jogadorSaindo.nivel}" para fazer a substituição.`);
+                return;
+            }
+            
+            // 5. Confirmação de segurança antes de trocar
+            if (!confirm(`Deseja substituir ${jogadorSaindo.nome} pelo próximo da fila de ${jogadorSaindo.nivel}?`)) {
+                return;
+            }
+            
+            // 6. Faz a mágica acontecer:
+            // .shift() tira o primeiro cara da fila de espera e guarda na variável
+            let jogadorEntrando = filaCorrespondente.shift(); 
+            
+            // .push() joga o cara que saiu lá pro final da mesma fila
+            filaCorrespondente.push(jogadorSaindo); 
+            
+            // Colocamos o novo cara exatamente na mesma posição do time onde o outro estava
+            timeAtual[index] = jogadorEntrando;
+            
+            // 7. Salva no banco de dados para a tela Ao Vivo atualizar
+            salvarNoFirestore();
+        }
+
         function iniciarPartida() {
             if (timeA.length === 6 && timeB.length === 6) {
                 partidaEmAndamento = true;
@@ -402,9 +451,19 @@
             document.getElementById('pontosA').innerText = pontos.A;
             document.getElementById('pontosB').innerText = pontos.B;
 
-            const formataTime = (time) => time.length > 0 ? time.map(j => "• " + j.nome).join('<br>') : "Vazio";
-            document.getElementById('listaTimeA').innerHTML = formataTime(timeA);
-            document.getElementById('listaTimeB').innerHTML = formataTime(timeB);
+            // LÓGICA NOVA PARA RENDERIZAR OS TIMES COM O BOTÃO DE SUBSTITUIÇÃO
+            const formataTimeQuadra = (timeArray, letraTime) => {
+                if (timeArray.length === 0) return "Vazio";
+                return timeArray.map(j => 
+                    `<div class="linha-jogador-quadra">
+                        <span>• ${j.nome}</span>
+                        <button class="remove-btn sub-btn" onclick="substituirJogador(${j.id}, '${letraTime}')" title="Substituir pelo próximo da fila">🔄</button>
+                    </div>`
+                ).join('');
+            };
+
+            document.getElementById('listaTimeA').innerHTML = formataTimeQuadra(timeA, 'A');
+            document.getElementById('listaTimeB').innerHTML = formataTimeQuadra(timeB, 'B');
 
             document.getElementById('countExp').innerText = filaExperientes.length;
             document.getElementById('countInt').innerText = filaIntermediarios.length; 
